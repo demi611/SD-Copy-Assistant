@@ -15,71 +15,22 @@ from components import DirectorySelector, InstructionDialog
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# 新增：定义输入框和按钮的样式（原main.py中缺失的样式变量）
-input_style = """
-    QLineEdit {
-        border: 1px solid palette(mid);
-        border-radius: 5px;
-        padding: 5px 12px;
-        font-size: 12px;
-        background-color: palette(base);
-        color: palette(window-text);
-    }
-    QLineEdit:focus {
-        border-color: palette(highlight);
-    }
-"""
-
-button_style = """
-    QPushButton {
-        border: 1px solid palette(mid);
-        border-radius: 5px;
-        padding: 5px 16px;
-        font-size: 12px;
-        background-color: palette(base);
-        color: palette(window-text);
-    }
-    QPushButton:hover {
-        border-color: palette(highlight);
-        background-color: palette(alternate-base);
-    }
-"""
-
-# 读取配置文件
-config = configparser.ConfigParser()
-config.read('config.ini')
-
-# 获取默认路径（从utils导入的函数）
-image_target_directory = config.get('Paths', 'image_target_directory', fallback=get_user_pictures_folder())
-video_target_directory = config.get('Paths', 'video_target_directory', fallback=get_user_videos_folder())
-sd_card_directory = config.get('Paths', 'sd_card_directory', fallback='/Volumes/Untitled')
-
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
-        self.adapt_system_theme()  # 初始化时自动适配系统主题
+        self.adapt_system_theme()
 
     def initUI(self):
         # 设置窗口标题和大小
-        self.setWindowTitle('拷卡助手')
-        self.setGeometry(300, 300, 700, 400)  # 调整窗口初始尺寸更紧凑
+        self.setWindowTitle('光影拷卡助手')
+        self.setGeometry(300, 300, 700, 500)  # 调整窗口初始尺寸更紧凑
 
-        # 获取系统默认调色板并自动适配主题（优化字体适配）
+        # 获取系统默认调色板并自动适配主题
         system_palette = QApplication.palette()
         self.setPalette(system_palette)
-        # 检查SF Pro字体是否存在（简化字体名称）
-        font_db = QFontDatabase()
-        # 优先使用SF Pro，其次使用macOS通用字体（Helvetica Neue/Arial）
-        preferred_fonts = ['SF Pro', 'Helvetica Neue', 'Arial']
-        main_font = None
-        for font in preferred_fonts:
-            if font in font_db.families():
-                main_font = QFont(font, 12)
-                break
-        if not main_font:
-            main_font = QFont()  # 最终回退到系统默认
-            logging.warning("系统未找到以下字体: SF Pro, Helvetica Neue, Arial，使用系统默认字体")  # 明确提示检查的字体列表
+        # 直接使用系统默认字体
+        main_font = QFont() 
         QApplication.setFont(main_font)
 
         # 创建布局（优化：增加主布局边距和控件间距）
@@ -103,12 +54,11 @@ class MainWindow(QWidget):
             }
         """
 
-        # 新增：定义通用按钮样式
         button_style = """
             QPushButton {
                 border: 1px solid palette(mid);
                 border-radius: 5px;
-                padding: 5px 16px;
+                padding: 7px 16px;
                 font-size: 12px;
                 background-color: palette(base);
                 color: palette(window-text);
@@ -119,44 +69,36 @@ class MainWindow(QWidget):
             }
         """
 
-        # 图片目标目录选择（优化：标签固定宽度+输入框扩展）
-        image_layout = QHBoxLayout()
-        image_label = QLabel('图片目标目录:')
-        image_label.setFixedWidth(100)  # 标签固定宽度对齐
-        self.image_input = QLineEdit(image_target_directory)
-        self.image_input.setStyleSheet(input_style)
-        image_button = QPushButton('选择目录')
-        image_button.setStyleSheet(button_style)  # 现在button_style已定义
-        image_button.clicked.connect(self.select_image_directory)
-        image_layout.addWidget(image_label)
-        image_layout.addWidget(self.image_input, 1)  # 输入框占1份空间
-        image_layout.addWidget(image_button)
+        # 原image_layout/video_layout/sd_layout替换为组件化实现
+        # 图片目标目录选择（使用DirectorySelector组件）
+        self.image_selector = DirectorySelector(
+            label_text="图片目标目录:",
+            default_path=get_user_pictures_folder(),  # 改为调用工具函数
+            input_style=input_style,
+            button_style=button_style
+        )
 
-        # 视频目标目录选择（样式与图片目录统一）
-        video_layout = QHBoxLayout()
-        video_label = QLabel('视频目标目录:')
-        video_label.setFixedWidth(100)
-        self.video_input = QLineEdit(video_target_directory)
-        self.video_input.setStyleSheet(input_style)
-        video_button = QPushButton('选择目录')
-        video_button.setStyleSheet(button_style)  # 引用已定义的button_style
-        video_button.clicked.connect(self.select_video_directory)
-        video_layout.addWidget(video_label)
-        video_layout.addWidget(self.video_input, 1)
-        video_layout.addWidget(video_button)
+        # 视频目标目录选择（使用DirectorySelector组件）
+        self.video_selector = DirectorySelector(
+            label_text="视频目标目录:",
+            default_path=get_user_videos_folder(),  # 改为调用工具函数
+            input_style=input_style,
+            button_style=button_style
+        )
 
-        # SD 卡目录选择（样式统一）
-        sd_layout = QHBoxLayout()
-        sd_label = QLabel('SD 卡目录:')
-        sd_label.setFixedWidth(100)
-        self.sd_input = QLineEdit(sd_card_directory)
-        self.sd_input.setStyleSheet(input_style)
-        sd_button = QPushButton('选择目录')
-        sd_button.setStyleSheet(button_style)  # 引用已定义的button_style
-        sd_button.clicked.connect(self.select_sd_directory)
-        sd_layout.addWidget(sd_label)
-        sd_layout.addWidget(self.sd_input, 1)
-        sd_layout.addWidget(sd_button)
+        # SD 卡目录选择（使用DirectorySelector组件，无系统默认路径时设为空）
+        self.sd_selector = DirectorySelector(
+            label_text="SD 卡目录:",
+            default_path="",  # 或根据需求设置其他默认值（如用户主目录）
+            input_style=input_style,
+            button_style=button_style
+        )
+        self.sd_selector.button.clicked.connect(self.select_sd_directory)
+
+        # 原布局添加逻辑调整
+        main_layout.addWidget(self.image_selector)
+        main_layout.addWidget(self.video_selector)
+        main_layout.addWidget(self.sd_selector)
 
         # 活动名称输入（优化：标签对齐+输入框扩展）
         event_layout = QHBoxLayout()
@@ -193,20 +135,13 @@ class MainWindow(QWidget):
                 border-radius: 5px;
                 padding: 5px 12px;
                 font-size: 12px;
-                background-color: palette(base);
+                background-color: palette(window); 
                 color: palette(window-text);
             }
             QComboBox:focus {
                 border-color: palette(highlight);
             }
-            QComboBox::drop-down {
-                width: 24px;
-                border: none;
-                background: transparent;
-            }
-            QComboBox::down-arrow {
-                image: none;  /* 移除自定义SVG路径 */
-            }
+
         """)
         # 重置为系统默认样式（自动使用标准下拉箭头）
         self.date_combo.setStyle(QApplication.style())
@@ -235,75 +170,80 @@ class MainWindow(QWidget):
 
         # 结果标签（优化：增加内边距+文字颜色）
         self.result_label = QLabel()
-        self.result_label.setFont(QFont('SF Pro', 12))
+        self.result_label.setFont(main_font)
         self.result_label.setWordWrap(True)
         self.result_label.setStyleSheet("padding: 10px; color: palette(window-text);")
 
         # 开始拷贝按钮（优化：强调按钮样式，调整尺寸）
         start_button = QPushButton('开始拷贝')
-        start_button.setFont(QFont('SF Pro', 13, QFont.Medium))
+        start_button.setFont(QFont(main_font.family(), 15, QFont.Medium)) 
+        # 关键修改：固定按钮宽度并调整策略
         start_button.setStyleSheet("""
             QPushButton {
                 background-color: #007AFF;
                 color: white;
                 border: none;
-                padding: 12px 24px;
+                padding: 10px 16px;  /* 水平内边距控制基础宽度 */
                 border-radius: 8px;
                 margin: 10px 0;
             }
             QPushButton:hover {
-                background-color: #0066CC;
+                background-color: #0066CC; 
             }
         """)
+        # 新增：显式固定按钮宽度（例如 120px，可根据需求调整）
+        start_button.setFixedWidth(180)
+        # 调整尺寸策略为 Fixed（严格按 setFixedWidth 控制宽度）
+        from PyQt5.QtWidgets import QSizePolicy
+        start_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         start_button.clicked.connect(self.start_copying)  # 绑定类方法
 
-        # 恢复使用说明按钮
+        # 使用说明按钮
         instruction_button = QPushButton('使用说明')
         instruction_button.setStyleSheet(button_style)  # 复用通用按钮样式
         instruction_button.clicked.connect(self.show_instruction_dialog)
-        main_layout.addWidget(instruction_button, 0, Qt.AlignRight)  # 右对齐添加
 
-        # 添加所有子布局到主布局
-        main_layout.addLayout(image_layout)
-        main_layout.addLayout(video_layout)
-        main_layout.addLayout(sd_layout)
+        # 添加所有子布局到主布局（注意顺序：使用说明按钮放在最后）
+        # 移除残留的 image_layout/video_layout/sd_layout 添加逻辑（已被组件替代）
         main_layout.addLayout(event_layout)
         main_layout.addLayout(separate_layout)
         main_layout.addLayout(date_layout)
         main_layout.addWidget(self.progress_bar)
         main_layout.addWidget(self.result_label)
-        main_layout.addWidget(start_button)
+        main_layout.addWidget(start_button, 0, Qt.AlignHCenter)
+        # 修改：将使用说明按钮添加到主布局的最后，左对齐（确保在底部）
+        main_layout.addWidget(instruction_button, 0, Qt.AlignLeft)  # 左对齐添加
 
         # 设置主布局到窗口
         self.setLayout(main_layout)
 
-    # 新增：处理图片目标目录选择的方法
+
+
+    # 可选：补充其他目录选择方法（根据实际需求）
+    # 调整目录选择方法，使用组件的get_path方法
     def select_image_directory(self):
         from PyQt5.QtWidgets import QFileDialog
         directory = QFileDialog.getExistingDirectory(
             self, "选择图片目标目录", self.image_selector.get_path()
         )
         if directory:
-            self.image_selector.input.setText(directory)
+            self.image_selector.input.setText(directory)  // 直接操作组件的input属性
 
-    # 可选：补充其他目录选择方法（根据实际需求）
-    # 新增：处理视频目标目录选择的方法
     def select_video_directory(self):
         from PyQt5.QtWidgets import QFileDialog
         directory = QFileDialog.getExistingDirectory(
-            self, "选择视频目标目录", self.video_input.text()  # 修正为 self.video_input
+            self, "选择视频目标目录", self.video_selector.get_path()
         )
         if directory:
-            self.video_input.setText(directory)  # 修正为 self.video_input
+            self.video_selector.input.setText(directory)
 
-    # 新增：处理SD卡目录选择的方法
     def select_sd_directory(self):
         from PyQt5.QtWidgets import QFileDialog
         directory = QFileDialog.getExistingDirectory(
-            self, "选择SD卡目录", self.sd_input.text()  # 修正为 self.sd_input
+            self, "选择SD卡目录", self.sd_selector.get_path()
         )
         if directory:
-            self.sd_input.setText(directory)  # 修正为 self.sd_input
+            self.sd_selector.input.setText(directory)
 
     # 新增：自动适配系统主题的方法
     def adapt_system_theme(self):
@@ -397,7 +337,7 @@ class MainWindow(QWidget):
         # 提示用户结果
         self.result_label.setText(f"获取到{len(dates)}个有效日期，已填充下拉框" if dates else "未找到有效文件日期")
 
-    # 新增：显示使用说明对话框的方法
+    # 新增：显示使用说明对话框的方法（关键修改）
     def show_instruction_dialog(self):
         """弹出使用说明对话框"""
         instruction_text = """使用说明：
@@ -409,6 +349,8 @@ class MainWindow(QWidget):
 6. 开始拷贝：确认所有信息后点击「开始拷贝」，进度条会实时显示拷贝进度
 """
         dialog = InstructionDialog(self)  # 假设 components.py 中已定义 InstructionDialog 组件
+        # 关键修改：显式设置对话框字体为系统默认（避免触发"SF Pro"加载）
+        dialog.setFont(QApplication.font())
         dialog.setWindowTitle("使用说明")
         dialog.set_message(instruction_text)  # 假设组件提供设置消息的方法
         dialog.exec_()
