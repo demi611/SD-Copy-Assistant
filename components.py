@@ -1,9 +1,9 @@
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QLineEdit, QPushButton, QHBoxLayout,
-    QDialog, QTextEdit, QVBoxLayout
+    QDialog, QTextEdit, QVBoxLayout, QApplication  # 新增QApplication导入
 )
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal  # 已有导入保持不变
 
 class DirectorySelector(QWidget):
     """目录选择组件（独立封装）"""
@@ -52,3 +52,73 @@ class InstructionDialog(QDialog):
     # 确保此方法缩进与 __init__ 方法一致（属于 InstructionDialog 类）
     def set_message(self, text):
         self.instruction_label.setText(text)
+
+from PyQt5.QtWidgets import QHBoxLayout, QLabel, QLineEdit
+
+class EventNameInput(QWidget):
+    def __init__(self, input_style, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.init_ui(input_style)
+
+    def init_ui(self, input_style):
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)  # 保持与主布局一致的边距
+        
+        self.label = QLabel("活动名称:")
+        self.label.setFixedWidth(100)  # 与其他标签宽度对齐
+        
+        self.input = QLineEdit()
+        self.input.setStyleSheet(input_style)
+        
+        layout.addWidget(self.label)
+        layout.addWidget(self.input, 1)  # 输入框扩展填充
+        
+        self.setLayout(layout)
+
+from PyQt5.QtWidgets import QHBoxLayout, QComboBox, QPushButton
+from PyQt5.QtCore import pyqtSignal  # 新增：导入pyqtSignal
+
+class DateSelector(QWidget):
+    date_selected = pyqtSignal(str)  # 日期选择信号
+    
+    def __init__(self, button_style, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.init_ui(button_style)
+        self.setup_connections()
+
+    def init_ui(self, button_style):
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.label = QLabel("选择日期:")
+        self.label.setFixedWidth(100)
+        
+        self.combo = QComboBox()
+        self.combo.setStyleSheet("""
+            QComboBox {
+                border: 1px solid palette(mid);
+                border-radius: 5px;
+                padding: 5px 12px;
+                font-size: 12px;
+                background-color: palette(window); 
+                color: palette(window-text);
+            }
+            QComboBox:focus { border-color: palette(highlight); }
+        """)
+        self.combo.setStyle(QApplication.style())  # 使用系统默认下拉箭头
+        
+        self.button = QPushButton("获取日期")
+        self.button.setStyleSheet(button_style)
+        
+        layout.addWidget(self.label)
+        layout.addWidget(self.combo, 1)
+        layout.addWidget(self.button)
+        
+        self.setLayout(layout)
+
+    def setup_connections(self):
+        self.button.clicked.connect(self.on_get_dates_clicked)  # 关联获取日期逻辑
+
+    def on_get_dates_clicked(self):
+        # 实际逻辑应通过信号传递给MainWindow处理，此处仅示例
+        self.date_selected.emit(self.combo.currentText())

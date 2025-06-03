@@ -5,6 +5,9 @@ import hashlib
 import logging
 from PyQt5.QtCore import QThread, pyqtSignal
 
+# 修改为导入方式
+from utils import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, RAW_EXTENSIONS  # 新增导入
+
 class CopyThread(QThread):
     progress_signal = pyqtSignal(int)
     result_signal = pyqtSignal(str)
@@ -19,33 +22,17 @@ class CopyThread(QThread):
         self.separate_raw = separate_raw  # 保存是否分开 RAW 文件的标志
 
     def run(self):
-        # 定义图片文件的扩展名，包含更多 RAW 格式
-        image_extensions = (
-            '.jpg', '.jpeg', '.png', '.raw', '.nef', '.cr2', '.CR3',
-            '.arw',  # 索尼 RAW 格式
-            '.dng',  # 通用 RAW 格式
-            '.raf',  # 富士 RAW 格式
-            '.orf',  # 奥林巴斯 RAW 格式
-            '.pef',  # 宾得 RAW 格式
-            '.srw',  # 三星 RAW 格式
-            '.x3f'   # 适马 RAW 格式
-        )
-        # 单独定义RAW格式扩展名（需要和image_extensions保持一致）
-        raw_extensions = ('.raw', '.nef', '.cr2', '.CR3', '.arw', '.dng', '.raf', '.orf', '.pef', '.srw', '.x3f')
-        video_extensions = ('.mp4', '.avi', '.mov')
-
-        all_files = []
-        # 修正：将 self.sd_card 改为 self.sd_path（正确实例变量）
+        image_extensions = IMAGE_EXTENSIONS
+        video_extensions = VIDEO_EXTENSIONS
+        # 直接筛选图片/视频文件（替代原all_files收集所有文件）
+        target_files = []
         for root, dirs, files in os.walk(self.sd_path):
-            logging.debug(f"Processing directory: {root}")
             for file in files:
-                file_path = os.path.join(root, file)
-                all_files.append(file_path)
-                # 增加调试信息，输出每个文件的扩展名
-                file_ext = os.path.splitext(file)[1].lower()
-                logging.debug(f"Found file: {file}, extension: {file_ext}")
-
-        total_files = len(all_files)
+                lower_file = file.lower()
+                if (lower_file.endswith(image_extensions) or 
+                    lower_file.endswith(video_extensions)):
+                    target_files.append(os.path.join(root, file))
+        total_files = len(target_files)
         copied_files = 0
         created_folders = set()
 
@@ -53,7 +40,7 @@ class CopyThread(QThread):
             self.result_signal.emit("SD 卡目录中没有可用的图片或视频文件，请检查路径。")
             return
 
-        for file_path in all_files:
+        for file_path in target_files:  # 直接遍历目标文件
             file = os.path.basename(file_path)
             lower_file = file.lower()
             is_image = False
@@ -122,7 +109,7 @@ class CopyThread(QThread):
                 if is_image:
                     # 新增：根据复选框状态选择目标子文件夹
                     if self.separate_raw:
-                        if file_ext in raw_extensions:
+                        if file_ext in [ext.lower() for ext in RAW_EXTENSIONS]:  # 使用RAW_EXTENSIONS判断
                             target_subfolder = os.path.join(folder_path, '原图', 'RAW')
                         else:
                             target_subfolder = os.path.join(folder_path, '原图', 'JPG')

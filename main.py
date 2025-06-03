@@ -11,7 +11,7 @@ from PyQt5.QtCore import Qt
 # 导入拆分的模块
 from utils import get_user_pictures_folder, get_user_videos_folder
 from copy_thread import CopyThread
-from components import DirectorySelector, InstructionDialog
+from components import DirectorySelector, InstructionDialog, EventNameInput, DateSelector  # 新增 DateSelector 导入
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -20,6 +20,14 @@ class MainWindow(QWidget):
         super().__init__()
         self.initUI()
         self.adapt_system_theme()
+
+    def select_directory(self, selector_component, title):
+        """通用目录选择方法（替代三个重复方法）"""
+        from PyQt5.QtWidgets import QFileDialog
+        current_path = selector_component.get_path()
+        directory = QFileDialog.getExistingDirectory(self, title, current_path)
+        if directory:
+            selector_component.input.setText(directory)
 
     def initUI(self):
         # 设置窗口标题和大小
@@ -30,7 +38,7 @@ class MainWindow(QWidget):
         system_palette = QApplication.palette()
         self.setPalette(system_palette)
         # 直接使用系统默认字体
-        main_font = QFont() 
+        main_font = QFont()
         QApplication.setFont(main_font)
 
         # 创建布局（优化：增加主布局边距和控件间距）
@@ -69,45 +77,45 @@ class MainWindow(QWidget):
             }
         """
 
-        # 原image_layout/video_layout/sd_layout替换为组件化实现
-        # 图片目标目录选择（使用DirectorySelector组件）
+        # 替换为组件化实现（补充完整参数）
         self.image_selector = DirectorySelector(
-            label_text="图片目标目录:",
-            default_path=get_user_pictures_folder(),  # 改为调用工具函数
-            input_style=input_style,
-            button_style=button_style
+            "图片目标目录",
+            get_user_pictures_folder(),
+            input_style,
+            button_style
         )
-
-        # 视频目标目录选择（使用DirectorySelector组件）
         self.video_selector = DirectorySelector(
-            label_text="视频目标目录:",
-            default_path=get_user_videos_folder(),  # 改为调用工具函数
-            input_style=input_style,
-            button_style=button_style
+            "视频目标目录",
+            get_user_videos_folder(),
+            input_style,
+            button_style
         )
-
-        # SD 卡目录选择（使用DirectorySelector组件，无系统默认路径时设为空）
         self.sd_selector = DirectorySelector(
-            label_text="SD 卡目录:",
-            default_path="",  # 或根据需求设置其他默认值（如用户主目录）
-            input_style=input_style,
-            button_style=button_style
+            "SD卡目录",
+            "",
+            input_style,
+            button_style
         )
-        self.sd_selector.button.clicked.connect(self.select_sd_directory)
+        
+        # 新增：绑定目录选择按钮的点击事件
+        self.image_selector.button.clicked.connect(lambda: self.select_directory(self.image_selector, "选择图片目标目录"))
+        self.video_selector.button.clicked.connect(lambda: self.select_directory(self.video_selector, "选择视频目标目录"))
+        self.sd_selector.button.clicked.connect(lambda: self.select_directory(self.sd_selector, "选择SD卡目录"))
 
-        # 原布局添加逻辑调整
+        # 新增封装的组件
+        self.event_input = EventNameInput(input_style)  # 来自components.py
+        self.date_selector = DateSelector(button_style)  # 来自components.py
+        
+        # 连接组件信号（新增：绑定获取日期按钮点击事件）
+        self.date_selector.button.clicked.connect(self.get_dates)  # 关键修改：将获取日期按钮与get_dates方法绑定
+        self.date_selector.date_selected.connect(self.handle_date_selected)
+    
+        # 主布局添加组件
         main_layout.addWidget(self.image_selector)
         main_layout.addWidget(self.video_selector)
         main_layout.addWidget(self.sd_selector)
-
-        # 活动名称输入（优化：标签对齐+输入框扩展）
-        event_layout = QHBoxLayout()
-        event_label = QLabel('活动名称:')
-        event_label.setFixedWidth(100)
-        self.event_input = QLineEdit()
-        self.event_input.setStyleSheet(input_style)
-        event_layout.addWidget(event_label)
-        event_layout.addWidget(self.event_input, 1)
+        main_layout.addWidget(self.event_input)
+        main_layout.addWidget(self.date_selector)
 
         # 分开存放复选框（最终对齐方案：与其他行标签起始位置完全一致）
         separate_layout = QHBoxLayout()
@@ -123,34 +131,6 @@ class MainWindow(QWidget):
         # 添加顺序：标题+复选框
         separate_layout.addWidget(separate_title)
         separate_layout.addWidget(self.separate_raw_checkbox)
-
-        # 日期选择布局（调整下拉框高度）
-        date_layout = QHBoxLayout()  # 新增：初始化日期选择布局
-        date_label = QLabel('选择日期:')  # 新增：定义日期标签
-        date_label.setFixedWidth(100)  # 标签固定宽度对齐（与其他标签统一）
-        self.date_combo = QComboBox()
-        self.date_combo.setStyleSheet("""
-            QComboBox {
-                border: 1px solid palette(mid);
-                border-radius: 5px;
-                padding: 5px 12px;
-                font-size: 12px;
-                background-color: palette(window); 
-                color: palette(window-text);
-            }
-            QComboBox:focus {
-                border-color: palette(highlight);
-            }
-
-        """)
-        # 重置为系统默认样式（自动使用标准下拉箭头）
-        self.date_combo.setStyle(QApplication.style())
-        date_button = QPushButton('获取日期')
-        date_button.setStyleSheet(button_style)
-        date_button.clicked.connect(self.get_dates)
-        date_layout.addWidget(date_label)
-        date_layout.addWidget(self.date_combo, 1)  # 下拉框占1份空间
-        date_layout.addWidget(date_button)
 
         # 进度条（优化：增加高度+圆角，初始隐藏）
         self.progress_bar = QProgressBar()
@@ -188,7 +168,7 @@ class MainWindow(QWidget):
                 margin: 10px 0;
             }
             QPushButton:hover {
-                background-color: #0066CC; 
+                background-color: #0066CC;
             }
         """)
         # 新增：显式固定按钮宽度（例如 120px，可根据需求调整）
@@ -203,11 +183,7 @@ class MainWindow(QWidget):
         instruction_button.setStyleSheet(button_style)  # 复用通用按钮样式
         instruction_button.clicked.connect(self.show_instruction_dialog)
 
-        # 添加所有子布局到主布局（注意顺序：使用说明按钮放在最后）
-        # 移除残留的 image_layout/video_layout/sd_layout 添加逻辑（已被组件替代）
-        main_layout.addLayout(event_layout)
         main_layout.addLayout(separate_layout)
-        main_layout.addLayout(date_layout)
         main_layout.addWidget(self.progress_bar)
         main_layout.addWidget(self.result_label)
         main_layout.addWidget(start_button, 0, Qt.AlignHCenter)
@@ -216,35 +192,7 @@ class MainWindow(QWidget):
 
         # 设置主布局到窗口
         self.setLayout(main_layout)
-
-
-
     # 可选：补充其他目录选择方法（根据实际需求）
-    # 调整目录选择方法，使用组件的get_path方法
-    def select_image_directory(self):
-        from PyQt5.QtWidgets import QFileDialog
-        directory = QFileDialog.getExistingDirectory(
-            self, "选择图片目标目录", self.image_selector.get_path()
-        )
-        if directory:
-            self.image_selector.input.setText(directory)  // 直接操作组件的input属性
-
-    def select_video_directory(self):
-        from PyQt5.QtWidgets import QFileDialog
-        directory = QFileDialog.getExistingDirectory(
-            self, "选择视频目标目录", self.video_selector.get_path()
-        )
-        if directory:
-            self.video_selector.input.setText(directory)
-
-    def select_sd_directory(self):
-        from PyQt5.QtWidgets import QFileDialog
-        directory = QFileDialog.getExistingDirectory(
-            self, "选择SD卡目录", self.sd_selector.get_path()
-        )
-        if directory:
-            self.sd_selector.input.setText(directory)
-
     # 新增：自动适配系统主题的方法
     def adapt_system_theme(self):
         """适配系统主题"""
@@ -297,19 +245,9 @@ class MainWindow(QWidget):
     # 新增：获取日期并填充下拉框的方法
     def get_dates(self):
         """获取SD卡中图片/视频文件的修改日期并填充下拉框"""
-        sd_card = self.sd_input.text()
-        # 定义图片和视频扩展名（与CopyThread保持一致）
-        image_extensions = (
-            '.jpg', '.jpeg', '.png', '.raw', '.nef', '.cr2', '.CR3',
-            '.arw',  # 索尼 RAW 格式
-            '.dng',  # 通用 RAW 格式
-            '.raf',  # 富士 RAW 格式
-            '.orf',  # 奥林巴斯 RAW 格式
-            '.pef',  # 宾得 RAW 格式
-            '.srw',  # 三星 RAW 格式
-            '.x3f'   # 适马 RAW 格式
-            )
-        video_extensions = ('.mp4', '.avi', '.mov')
+        sd_card = self.sd_selector.get_path()  # 修正：通过组件获取SD卡路径
+        # 从utils导入统一的扩展名定义（需先在utils.py中定义）
+        from utils import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
         
         dates = set()
         # 遍历SD卡目录获取文件日期
@@ -317,8 +255,8 @@ class MainWindow(QWidget):
             for file in files:
                 lower_file = file.lower()
                 # 检查是否为图片或视频文件
-                is_image = any(lower_file.endswith(ext) for ext in image_extensions)
-                is_video = any(lower_file.endswith(ext) for ext in video_extensions)
+                is_image = any(lower_file.endswith(ext) for ext in IMAGE_EXTENSIONS)
+                is_video = any(lower_file.endswith(ext) for ext in VIDEO_EXTENSIONS)
                 if is_image or is_video:
                     file_path = os.path.join(root, file)
                     try:
@@ -329,11 +267,11 @@ class MainWindow(QWidget):
                     except Exception as e:
                         logging.error(f"获取文件{file}日期失败: {str(e)}")
         
-        # 填充日期下拉框
-        self.date_combo.clear()
-        self.date_combo.addItem("全部日期")
+        # 填充日期下拉框（假设使用DateSelector组件的combo属性）
+        self.date_selector.combo.clear()
+        self.date_selector.combo.addItem("全部日期")
         for date in sorted(dates):
-            self.date_combo.addItem(date)
+            self.date_selector.combo.addItem(date)
         # 提示用户结果
         self.result_label.setText(f"获取到{len(dates)}个有效日期，已填充下拉框" if dates else "未找到有效文件日期")
 
@@ -358,17 +296,26 @@ class MainWindow(QWidget):
     # 新增：开始拷贝的核心方法（提升为类成员方法）
     def start_copying(self):
         """启动文件拷贝流程"""
-        # 获取用户输入参数
-        sd_path = self.sd_input.text().strip()
-        image_target = self.image_input.text().strip()
-        video_target = self.video_input.text().strip()
-        event_name = self.event_input.text().strip()
-        selected_date = self.date_combo.currentText()
+        # 获取用户输入参数（修正：通过组件的input属性获取输入框文本）
+        sd_path = self.sd_selector.input.text().strip()  # 原 self.sd_input → self.sd_selector.input
+        image_target = self.image_selector.input.text().strip()  # 原 self.image_input → self.image_selector.input
+        video_target = self.video_selector.input.text().strip()  # 原 self.video_input → self.video_selector.input
+        event_name = self.event_input.input.text().strip()  # 假设 EventNameInput 组件的输入框为 input 属性（需根据 components.py 实际定义调整）
+        selected_date = self.date_selector.combo.currentText()  # 原 self.date_combo → self.date_selector.combo
         
-        # 参数校验
+        # 参数校验（补充路径有效性检查）
         if not all([sd_path, image_target, video_target, event_name]):
             QMessageBox.warning(self, "输入缺失", "请填写所有必要信息（SD卡目录、目标目录、活动名称）")
             return
+        
+        # 检查路径是否存在且为目录
+        for path in [sd_path, image_target, video_target]:
+            if not os.path.exists(path):
+                QMessageBox.warning(self, "路径错误", f"路径不存在：{path}")
+                return
+            if not os.path.isdir(path):
+                QMessageBox.warning(self, "路径错误", f"不是目录：{path}")
+                return
         
         # 初始化进度条（显示并重置）
         self.progress_bar.setVisible(True)
@@ -391,6 +338,14 @@ class MainWindow(QWidget):
 
         # 启动线程
         self.copy_thread.start()
+
+    # 新增：处理日期选择的槽函数
+    def handle_date_selected(self, selected_date):
+        """处理日期选择信号"""
+        logging.debug(f"选中的日期：{selected_date}")
+        # 修改：通过DateSelector组件的combo属性访问下拉框
+        if selected_date in [self.date_selector.combo.itemText(i) for i in range(self.date_selector.combo.count())]:
+            self.date_selector.combo.setCurrentText(selected_date)
 
 if __name__ == '__main__':
     app = QApplication([])
