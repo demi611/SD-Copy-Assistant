@@ -2,12 +2,13 @@ import os
 import logging
 import datetime
 import configparser
-from PyQt5.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QProgressBar, QLabel,
-    QComboBox, QPushButton, QMessageBox, QHBoxLayout, QLineEdit, QCheckBox,
+
+from PyQt6.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QProgressBar, QLabel, QFileDialog,
+    QComboBox, QPushButton, QMessageBox, QHBoxLayout, QLineEdit, QCheckBox, QSizePolicy
 )
-from PyQt5.QtGui import QFont, QPalette, QColor, QFontDatabase
-from PyQt5.QtCore import Qt
+from PyQt6.QtGui import QFont, QPalette, QColor, QFontDatabase
+from PyQt6.QtCore import Qt
 # 导入拆分的模块
 from utils import get_user_pictures_folder, get_user_videos_folder
 from copy_thread import CopyThread
@@ -20,10 +21,12 @@ class MainWindow(QWidget):
         super().__init__()
         self.initUI()
         self.adapt_system_theme()
+        # 启用macOS统一标题栏（需要Qt 5.11+）
+        self.setWindowFlags(self.windowFlags() | Qt.WindowType.CustomizeWindowHint)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowMinMaxButtonsHint)  # 保持原生按钮
 
     def select_directory(self, selector_component, title):
         """通用目录选择方法（替代三个重复方法）"""
-        from PyQt5.QtWidgets import QFileDialog
         current_path = selector_component.get_path()
         directory = QFileDialog.getExistingDirectory(self, title, current_path)
         if directory:
@@ -156,7 +159,7 @@ class MainWindow(QWidget):
 
         # 开始拷贝按钮（优化：强调按钮样式，调整尺寸）
         start_button = QPushButton('开始拷贝')
-        start_button.setFont(QFont(main_font.family(), 15, QFont.Medium)) 
+        start_button.setFont(QFont(main_font.family(), 15, QFont.Weight.Medium))
         # 关键修改：固定按钮宽度并调整策略
         start_button.setStyleSheet("""
             QPushButton {
@@ -174,8 +177,8 @@ class MainWindow(QWidget):
         # 新增：显式固定按钮宽度（例如 120px，可根据需求调整）
         start_button.setFixedWidth(180)
         # 调整尺寸策略为 Fixed（严格按 setFixedWidth 控制宽度）
-        from PyQt5.QtWidgets import QSizePolicy
-        start_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+        start_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         start_button.clicked.connect(self.start_copying)  # 绑定类方法
 
         # 使用说明按钮
@@ -186,60 +189,55 @@ class MainWindow(QWidget):
         main_layout.addLayout(separate_layout)
         main_layout.addWidget(self.progress_bar)
         main_layout.addWidget(self.result_label)
-        main_layout.addWidget(start_button, 0, Qt.AlignHCenter)
+
+        main_layout.addWidget(start_button, 0, Qt.AlignmentFlag.AlignHCenter)
         # 修改：将使用说明按钮添加到主布局的最后，左对齐（确保在底部）
-        main_layout.addWidget(instruction_button, 0, Qt.AlignLeft)  # 左对齐添加
+        main_layout.addWidget(instruction_button, 0, Qt.AlignmentFlag.AlignLeft)  # 左对齐添加
 
         # 设置主布局到窗口
         self.setLayout(main_layout)
     # 可选：补充其他目录选择方法（根据实际需求）
     # 新增：自动适配系统主题的方法
     def adapt_system_theme(self):
-        """适配系统主题"""
-        # 兼容低版本 Qt（<5.14）的主题检测逻辑：通过背景色亮度判断
-        palette = QApplication.palette()
-        window_bg = palette.color(QPalette.Window)
-        # 计算颜色亮度（0-255，值越小越暗）
-        brightness = (window_bg.red() * 299 + window_bg.green() * 587 + window_bg.blue() * 114) // 1000
-        if brightness < 128:  # 亮度低于128视为深色主题
-            self.apply_dark_theme()
+        """深度适配macOS系统主题（支持10.14+暗模式）"""
+        # 使用Qt 5.14+的系统主题检测（兼容旧版本）
+        if hasattr(QApplication, "styleHints"):
+            theme = QApplication.styleHints().colorScheme()
+            # 关键修改：QPalette.ColorScheme → Qt.ColorScheme
+            if theme == Qt.ColorScheme.Dark:
+                self.apply_macos_dark_theme()
+            else:
+                self.apply_macos_light_theme()
         else:
-            self.apply_light_theme()
-
-    def apply_dark_theme(self):
-        """应用深色主题样式"""
-        dark_palette = QPalette()
-        # 定义深色主题的基础颜色（适配macOS深色模式）
-        dark_bg = QColor(53, 53, 53)
-        dark_text = Qt.white
-        dark_base = QColor(25, 25, 25)
-        
-        # 设置各组件颜色
-        dark_palette.setColor(QPalette.Window, dark_bg)          # 窗口背景
-        dark_palette.setColor(QPalette.WindowText, dark_text)     # 窗口文本
-        dark_palette.setColor(QPalette.Base, dark_base)           # 输入框背景
-        dark_palette.setColor(QPalette.AlternateBase, dark_bg)    # 交替背景（如列表）
-        dark_palette.setColor(QPalette.Text, dark_text)           # 输入框文本
-        dark_palette.setColor(QPalette.Button, dark_bg)           # 按钮背景
-        dark_palette.setColor(QPalette.ButtonText, dark_text)     # 按钮文本
+            # 兼容旧版本的亮度检测逻辑（保留原有）
+            palette = QApplication.palette()
+            window_bg = palette.color(QPalette.Window)
+            brightness = (window_bg.red() * 299 + window_bg.green() * 587 + window_bg.blue() * 114) // 1000
+            if brightness < 128:
+                self.apply_macos_dark_theme()
+            else:
+                self.apply_macos_light_theme()
+    
+    def apply_macos_dark_theme(self):
+        """应用macOS原生深色主题"""
+        dark_palette = QApplication.palette()
+        # 关键修改：Qt.white → Qt.GlobalColor.white（其他颜色同理）
+        dark_palette.setColor(QPalette.ColorRole.Window, QColor(53, 53, 53))        
+        dark_palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)             
+        dark_palette.setColor(QPalette.ColorRole.Base, QColor(40, 40, 40))         
+        dark_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(50, 50, 50))
+        dark_palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 122, 255))   
         self.setPalette(dark_palette)
-
-    def apply_light_theme(self):
-        """应用浅色主题样式"""
-        light_palette = QPalette()
-        # 定义浅色主题的基础颜色（适配macOS浅色模式）
-        light_bg = QColor(240, 240, 240)
-        light_text = Qt.black
-        light_base = QColor(255, 255, 255)
-        
-        # 设置各组件颜色
-        light_palette.setColor(QPalette.Window, light_bg)         # 窗口背景
-        light_palette.setColor(QPalette.WindowText, light_text)    # 窗口文本
-        light_palette.setColor(QPalette.Base, light_base)          # 输入框背景
-        light_palette.setColor(QPalette.AlternateBase, light_bg)   # 交替背景（如列表）
-        light_palette.setColor(QPalette.Text, light_text)          # 输入框文本
-        light_palette.setColor(QPalette.Button, light_bg)          # 按钮背景
-        light_palette.setColor(QPalette.ButtonText, light_text)    # 按钮文本
+    
+    def apply_macos_light_theme(self):
+        """应用macOS原生浅色主题"""
+        light_palette = QApplication.palette()
+        # 关键修改：Qt.black → Qt.GlobalColor.black（其他颜色同理）
+        light_palette.setColor(QPalette.ColorRole.Window, QColor(240, 240, 240))    
+        light_palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.black)             
+        light_palette.setColor(QPalette.ColorRole.Base, QColor(255, 255, 255))      
+        light_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(245, 245, 245))
+        light_palette.setColor(QPalette.ColorRole.Highlight, QColor(0, 122, 255))   
         self.setPalette(light_palette)
 
     # 新增：获取日期并填充下拉框的方法
@@ -309,11 +307,15 @@ class MainWindow(QWidget):
             return
         
         # 检查路径是否存在且为目录
+        from PyQt6.QtCore import QDir
+        
+        # 在路径校验部分替换为：
         for path in [sd_path, image_target, video_target]:
-            if not os.path.exists(path):
+            qdir = QDir(path)
+            if not qdir.exists():
                 QMessageBox.warning(self, "路径错误", f"路径不存在：{path}")
                 return
-            if not os.path.isdir(path):
+            if not qdir.isDir():
                 QMessageBox.warning(self, "路径错误", f"不是目录：{path}")
                 return
         
@@ -343,6 +345,8 @@ class MainWindow(QWidget):
     def handle_date_selected(self, selected_date):
         """处理日期选择信号"""
         logging.debug(f"选中的日期：{selected_date}")
+        # 示例：更新内部状态或触发重新扫描
+        self.selected_date = selected_date if selected_date != "全部日期" else None
         # 修改：通过DateSelector组件的combo属性访问下拉框
         if selected_date in [self.date_selector.combo.itemText(i) for i in range(self.date_selector.combo.count())]:
             self.date_selector.combo.setCurrentText(selected_date)
@@ -351,4 +355,4 @@ if __name__ == '__main__':
     app = QApplication([])
     window = MainWindow()
     window.show()
-    app.exec_()
+    app.exec()

@@ -3,9 +3,7 @@ import datetime
 import shutil
 import hashlib
 import logging
-from PyQt5.QtCore import QThread, pyqtSignal
-
-# 修改为导入方式
+from PyQt6.QtCore import QThread, pyqtSignal  # 确保已升级为 PyQt6 导入
 from utils import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, RAW_EXTENSIONS  # 新增导入
 
 class CopyThread(QThread):
