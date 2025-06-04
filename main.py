@@ -65,18 +65,24 @@ class MainWindow(QWidget):
             }
         """
 
+        # 关键修改：统一非开始拷贝按钮的色调（新增按下状态样式）
         button_style = """
             QPushButton {
-                border: 1px solid palette(mid);
+                border: 1px solid palette(mid);  /* 边框颜色与主题一致 */
                 border-radius: 5px;
                 padding: 7px 16px;
                 font-size: 12px;
-                background-color: palette(base);
-                color: palette(window-text);
+                background-color: palette(base);  /* 按钮背景与主题基础色一致 */
+                color: palette(window-text);      /* 文字颜色与主题文本色一致 */
             }
             QPushButton:hover {
+                border-color: palette(highlight);  /* 悬停时边框色为主题强调色 */
+                background-color: palette(alternate-base);  /* 悬停背景与主题交替基础色一致 */
+            }
+            QPushButton:pressed {  /* 新增：按下状态样式 */
                 border-color: palette(highlight);
-                background-color: palette(alternate-base);
+                background-color: palette(highlight);  /* 按下时背景色为主题强调色 */
+                color: white;  /* 按下时文字颜色反白 */
             }
         """
 
@@ -248,22 +254,35 @@ class MainWindow(QWidget):
         from utils import IMAGE_EXTENSIONS, VIDEO_EXTENSIONS
         
         dates = set()
-        # 遍历SD卡目录获取文件日期
-        for root, _, files in os.walk(sd_card):
-            for file in files:
-                lower_file = file.lower()
-                # 检查是否为图片或视频文件
-                is_image = any(lower_file.endswith(ext) for ext in IMAGE_EXTENSIONS)
-                is_video = any(lower_file.endswith(ext) for ext in VIDEO_EXTENSIONS)
-                if is_image or is_video:
-                    file_path = os.path.join(root, file)
-                    try:
-                        # 获取文件修改日期（格式YYYYMMDD）
-                        mod_time = os.path.getmtime(file_path)
-                        date_str = datetime.datetime.fromtimestamp(mod_time).strftime('%Y%m%d')
-                        dates.add(date_str)
-                    except Exception as e:
-                        logging.error(f"获取文件{file}日期失败: {str(e)}")
+        # 检查SD卡路径是否有效
+        if not sd_card:
+            self.result_label.setText("错误：未选择SD卡目录")
+            return
+        if not os.path.isdir(sd_card):
+            self.result_label.setText(f"错误：SD卡路径无效 - {sd_card}")
+            return
+        
+        # 遍历SD卡目录获取文件日期（新增外层异常捕获）
+        try:
+            for root, _, files in os.walk(sd_card):
+                for file in files:
+                    lower_file = file.lower()
+                    # 检查是否为图片或视频文件
+                    is_image = any(lower_file.endswith(ext) for ext in IMAGE_EXTENSIONS)
+                    is_video = any(lower_file.endswith(ext) for ext in VIDEO_EXTENSIONS)
+                    if is_image or is_video:
+                        file_path = os.path.join(root, file)
+                        try:
+                            # 获取文件修改日期（格式YYYYMMDD）
+                            mod_time = os.path.getmtime(file_path)
+                            date_str = datetime.datetime.fromtimestamp(mod_time).strftime('%Y%m%d')
+                            dates.add(date_str)
+                        except Exception as e:
+                            logging.error(f"获取文件{file}日期失败: {str(e)}")
+        except Exception as e:
+            logging.error(f"遍历SD卡目录失败: {str(e)}")
+            self.result_label.setText(f"错误：无法遍历SD卡目录 - {str(e)}")
+            return
         
         # 填充日期下拉框（假设使用DateSelector组件的combo属性）
         self.date_selector.combo.clear()
@@ -284,12 +303,15 @@ class MainWindow(QWidget):
 5. 高级选项：勾选「RAW和JPG文件分开保存」可将RAW格式图片单独存放
 6. 开始拷贝：确认所有信息后点击「开始拷贝」，进度条会实时显示拷贝进度
 """
-        dialog = InstructionDialog(self)  # 假设 components.py 中已定义 InstructionDialog 组件
-        # 关键修改：显式设置对话框字体为系统默认（避免触发"SF Pro"加载）
-        dialog.setFont(QApplication.font())
-        dialog.setWindowTitle("使用说明")
-        dialog.set_message(instruction_text)  # 假设组件提供设置消息的方法
-        dialog.exec_()
+        try:
+            dialog = InstructionDialog(self)  # self 指向 MainWindow 实例（需确保方法在 MainWindow 类内）
+            dialog.setFont(QApplication.font())
+            dialog.setWindowTitle("使用说明")
+            dialog.set_message(instruction_text)
+            dialog.exec()  # PyQt6 中使用 exec() 替代 exec_()
+        except Exception as e:
+            logging.error(f"使用说明对话框初始化失败: {str(e)}")
+            QMessageBox.warning(self, "错误", "无法显示使用说明，请检查程序配置")
 
     # 新增：开始拷贝的核心方法（提升为类成员方法）
     def start_copying(self):

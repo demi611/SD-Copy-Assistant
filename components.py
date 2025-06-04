@@ -30,20 +30,21 @@ class InstructionDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("使用说明")
         self.setGeometry(400, 400, 600, 400)
+        # 新增：设置对话框模态（避免父窗口被误操作）
+        self.setWindowModality(Qt.WindowModality.ApplicationModal)
         
-        # 初始化布局和说明文本框（设为实例变量）
         layout = QVBoxLayout()
         self.instruction_label = QTextEdit()
         self.instruction_label.setReadOnly(True)
-        # 移除自定义字体设置，使用系统默认
+        # 优化样式：增加边框宽度兼容性
         self.instruction_label.setStyleSheet("""
             QTextEdit {
                 background-color: palette(window);
                 color: palette(window-text);
-                border: 1px solid palette(midlight);
+                border: 2px solid palette(midlight);  /* 加粗边框提高可见性 */
                 border-radius: 8px;
                 padding: 15px;
-                opacity: 0.9;
+                opacity: 0.95;  /* 略微提高不透明度 */
             }
         """)
         layout.addWidget(self.instruction_label)
