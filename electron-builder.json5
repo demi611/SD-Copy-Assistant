@@ -3,7 +3,7 @@
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
   "appId": "com.photocopytool.app",
   "asar": true,
-  "productName": "光影拷卡助手",
+  "productName": "PhotoCopyAssistant",
   "directories": {
     "output": "release/${version}",
     "buildResources": "build"
@@ -13,15 +13,17 @@
     "dist-electron"
   ],
   "electronDownload": {
-    "mirror": "https://repo.huaweicloud.com/electron/"
+    "mirror": "https://npmmirror.com/mirrors/electron/"
   },
+  "buildDependenciesFromSource": false,
   "mac": {
     "target": [
       "dmg"
     ],
     "icon": "build/icon.icns",
     "category": "public.app-category.photography",
-    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+    "productName": "光影拷卡助手",
+    "artifactName": "光影拷卡助手-Mac-${version}-Installer.${ext}"
   },
   "win": {
     "target": [
@@ -33,7 +35,8 @@
       }
     ],
     "icon": "build/icon.ico",
-    "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
+    "executableName": "PhotoCopyAssistant",
+    "artifactName": "PhotoCopyAssistant-Windows-${version}-Setup.${ext}"
   },
   "nsis": {
     "oneClick": false,
