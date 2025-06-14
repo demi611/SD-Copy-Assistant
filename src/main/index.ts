@@ -681,19 +681,71 @@ async function getRemovableDrives(): Promise<Array<{path: string, label: string}
       writeToLog('error', '检测可移动驱动器失败:', error)
     }
   } else if (process.platform === 'win32') {
-    // Windows: 检查常见的驱动器字母
-    const driveLetters = ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
-    for (const letter of driveLetters) {
-      const drivePath = `${letter}:\\`
-      try {
-        await fs.access(drivePath)
-        const hasTypicalCameraFolders = await checkForCameraFolders(drivePath)
-        drives.push({
-          path: drivePath,
-          label: hasTypicalCameraFolders ? `${letter}: (相机存储卡)` : `${letter}: 驱动器`
-        })
-      } catch (error) {
-        // 驱动器不存在或无法访问
+    // Windows: 使用WMI查询可移动磁盘
+    try {
+      const { stdout } = await execAsync(
+        'wmic logicaldisk where "DriveType=2" get DeviceID,VolumeName,Size /format:csv'
+      )
+      
+      const lines = stdout.split('\n').filter(line => line.trim() && !line.startsWith('Node'))
+      
+      for (const line of lines) {
+        const parts = line.split(',')
+        if (parts.length >= 4) {
+          const deviceId = parts[1]?.trim()
+          const volumeName = parts[3]?.trim() || ''
+          
+          if (deviceId && deviceId.match(/^[A-Z]:$/)) {
+            const drivePath = `${deviceId}\\`
+            try {
+              await fs.access(drivePath)
+              
+              // 进一步验证是否可以弹出（真正的可移动设备）
+              const isEjectable = await checkIfDriveIsEjectable(deviceId)
+              if (!isEjectable) {
+                writeToLog('info', `跳过不可弹出的驱动器: ${drivePath}`)
+                continue
+              }
+              
+              const hasTypicalCameraFolders = await checkForCameraFolders(drivePath)
+              const label = volumeName 
+                ? (hasTypicalCameraFolders ? `${volumeName} (${deviceId} 相机存储卡)` : `${volumeName} (${deviceId})`)
+                : (hasTypicalCameraFolders ? `${deviceId} (相机存储卡)` : `${deviceId} 可移动磁盘`)
+              
+              drives.push({
+                path: drivePath,
+                label: label
+              })
+            } catch (error) {
+              // 驱动器不存在或无法访问
+            }
+          }
+        }
+      }
+    } catch (error) {
+      writeToLog('error', 'Windows WMI查询失败，回退到传统方法:', error)
+      
+      // 回退方案：检查常见驱动器字母，但增加更严格的验证
+      const driveLetters = ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+      for (const letter of driveLetters) {
+        const drivePath = `${letter}:\\`
+        try {
+          await fs.access(drivePath)
+          
+          // 检查是否可以弹出
+          const isEjectable = await checkIfDriveIsEjectable(`${letter}:`)
+          if (!isEjectable) {
+            continue
+          }
+          
+          const hasTypicalCameraFolders = await checkForCameraFolders(drivePath)
+          drives.push({
+            path: drivePath,
+            label: hasTypicalCameraFolders ? `${letter}: (相机存储卡)` : `${letter}: 可移动磁盘`
+          })
+        } catch (error) {
+          // 驱动器不存在或无法访问
+        }
       }
     }
   } else {
@@ -750,6 +802,57 @@ async function checkForCameraFolders(drivePath: string): Promise<boolean> {
     // 检查是否包含任何相机文件夹
     return cameraFolders.some(folder => lowerEntries.includes(folder))
   } catch (error) {
+    return false
+  }
+}
+
+// Windows: 检查驱动器是否可以弹出（真正的可移动设备）
+async function checkIfDriveIsEjectable(deviceId: string): Promise<boolean> {
+  if (process.platform !== 'win32') {
+    return true // 非Windows平台默认返回true
+  }
+  
+  try {
+    // 方法1: 使用PowerShell检查驱动器类型
+    const { stdout } = await execAsync(
+      `powershell -Command "Get-WmiObject -Class Win32_LogicalDisk | Where-Object {$_.DeviceID -eq '${deviceId}'} | Select-Object DriveType, MediaType"`
+    )
+    
+    // DriveType=2 表示可移动磁盘
+    if (stdout.includes('DriveType') && stdout.includes('2')) {
+      return true
+    }
+    
+    // 方法2: 尝试使用Shell.Application检查是否有弹出选项
+    try {
+      const { stdout: shellResult } = await execAsync(
+        `powershell -Command "try { $shell = New-Object -ComObject Shell.Application; $drive = $shell.Namespace(17).ParseName('${deviceId}'); $verbs = $drive.Verbs(); $hasEject = $verbs | Where-Object {$_.Name -like '*弹出*' -or $_.Name -like '*Eject*'}; if ($hasEject) { 'EJECTABLE' } else { 'NOT_EJECTABLE' } } catch { 'ERROR' }"`
+      )
+      
+      if (shellResult.trim() === 'EJECTABLE') {
+        return true
+      }
+    } catch (error) {
+      // Shell方法失败，继续使用其他方法
+    }
+    
+    // 方法3: 检查是否是USB设备
+    try {
+      const { stdout: usbResult } = await execAsync(
+        `powershell -Command "Get-WmiObject -Class Win32_LogicalDiskToPartition | Where-Object {$_.Dependent -like '*${deviceId}*'} | ForEach-Object { Get-WmiObject -Class Win32_DiskPartition | Where-Object {$_.DeviceID -eq $_.Antecedent.Split('=')[1].Trim('\"')} } | ForEach-Object { Get-WmiObject -Class Win32_DiskDrive | Where-Object {$_.Index -eq $_.DiskIndex} } | Select-Object InterfaceType"`
+      )
+      
+      if (usbResult.includes('USB') || usbResult.includes('1394')) {
+        return true
+      }
+    } catch (error) {
+      // USB检查失败
+    }
+    
+    return false
+  } catch (error) {
+    writeToLog('error', `检查驱动器${deviceId}是否可弹出时出错:`, error)
+    // 出错时保守处理，返回false避免误识别
     return false
   }
 }
