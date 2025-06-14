@@ -1,0 +1,41 @@
+{
+  "name": "photo-copy-app---template-vue",
+  "private": true,
+  "version": "0.0.0",
+  "description": "一款专为摄影师和摄影爱好者设计的智能SD卡文件拷贝工具",
+  "author": "光影拷卡助手开发团队",
+  "type": "module",
+  "scripts": {
+    "dev": "VITE_ELECTRON_INSPECT=0 vite",
+    "build": "vue-tsc && vite build && electron-builder",
+    "preview": "vite preview",
+    "build:electron": "electron-builder",
+    "generate-icons": "node scripts/generate-icons.cjs",
+    "setup-icon": "node scripts/setup-custom-icon.cjs",
+    "setup-icon-with-padding": "node scripts/setup-custom-icon-with-padding.cjs",
+    "setup-rounded-icon": "node scripts/setup-rounded-icon.cjs",
+    "clear-icon-cache": "node scripts/clear-icon-cache.cjs"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "@types/crypto-js": "^4.2.2",
+    "@types/fs-extra": "^11.0.4",
+    "crypto-js": "^4.2.0",
+    "dayjs": "^1.11.13",
+    "element-plus": "^2.9.11",
+    "fs-extra": "^11.3.0",
+    "vue": "^3.4.21"
+  },
+  "devDependencies": {
+    "@electron-toolkit/utils": "^4.0.0",
+    "@vitejs/plugin-vue": "^5.0.4",
+    "electron": "^30.0.1",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.2.2",
+    "vite": "^5.1.6",
+    "vite-plugin-electron": "^0.28.6",
+    "vite-plugin-electron-renderer": "^0.14.5",
+    "vue-tsc": "^2.0.26"
+  },
+  "main": "dist-electron/index.js"
+}

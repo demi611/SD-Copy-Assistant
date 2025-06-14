@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "preserve",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Add/Update typeRoots and paths */
+    "typeRoots": [
+      "./node_modules/@types",
+      "./src/renderer/src/types"
+    ],
+    "paths": {
+      "element-plus/dist/locale/*": ["./node_modules/element-plus/dist/locale/*"],
+      "@element-plus/icons-vue": ["./node_modules/@element-plus/icons-vue"]
+    },
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/renderer/**/*.vue", "electron"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
