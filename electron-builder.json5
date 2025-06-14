@@ -12,6 +12,9 @@
     "dist",
     "dist-electron"
   ],
+  "electronDownload": {
+    "mirror": "https://repo.huaweicloud.com/electron/"
+  },
   "mac": {
     "target": [
       "dmg"

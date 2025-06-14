@@ -95,7 +95,7 @@
                       <el-icon><PriceTag /></el-icon>活动名称
                     </span>
                   </template>
-                  <el-input v-model="form.activityName" placeholder="请输入活动名称（可选，默认：媒体文件）" class="custom-input">
+                  <el-input v-model="form.activityName" placeholder="请输入活动名称（不填默认为：媒体文件）" class="custom-input">
                      <template #suffix>
                       <el-icon><EditPen /></el-icon>
                     </template>
@@ -109,11 +109,11 @@
                       <el-icon><Calendar /></el-icon>选择日期
                     </span>
                   </template>
-                  <div class="custom-date-section">
+                  <div class="custom-input-group">
                     <el-select 
                       v-model="form.selectedDates" 
                       multiple 
-                      placeholder="年 / 月 / 日" 
+                      placeholder="获取日期成功后，点击下拉选择拷贝日期" 
                       class="custom-select" 
                     >
                       <el-option label="全部日期" value="all"></el-option>
@@ -915,17 +915,7 @@ html, body, #app {
   color: #409EFF;
 }
 
-/* 日期部分 */
-.custom-date-section {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  width: 100%; 
-}
-
-.custom-date-section .el-select.custom-select {
-  width: 200px; /* 日期选择器的明确宽度 */
-}
+/* 日期部分样式已移动到 custom-input-group */
 
 /* 针对"获取日期"按钮的新样式，使其与"选择目录"按钮风格一致 */
 .custom-date-action-button {
@@ -1250,6 +1240,37 @@ html, body, #app {
 .custom-input-group .custom-input {
   flex: 1; /* 输入框占据剩余空间 */
   min-width: 0; /* 允许输入框收缩 */
+}
+
+.custom-input-group .custom-select {
+  flex: 1; /* 选择器占据剩余空间 */
+  min-width: 200px; /* 设置最小宽度 */
+}
+
+/* 日期选择器下拉选项居中显示 */
+.custom-select .el-select-dropdown__item {
+  text-align: center !important;
+  justify-content: center !important;
+}
+
+/* 确保下拉框选项的文字居中 - 使用更具体的选择器 */
+.el-select-dropdown .el-select-dropdown__item {
+  text-align: center !important;
+  justify-content: center !important;
+}
+
+/* 全局样式确保所有日期选择器的选项都居中 */
+.el-select-dropdown__item {
+  text-align: center !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* 特别针对我们的日期选择器 */
+.el-popper[data-popper-placement] .el-select-dropdown__item {
+  text-align: center !important;
+  justify-content: center !important;
 }
 
 /* 当SD卡输入框区域有推出按钮时的特殊样式 */

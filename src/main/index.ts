@@ -1,11 +1,11 @@
 // ES Module 兼容的 __dirname 和 __filename
 import { fileURLToPath } from 'node:url'
-import { dirname, join } from 'path'
+import { dirname } from 'path'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 import { app, BrowserWindow, ipcMain, dialog, shell, nativeImage } from 'electron'
-import path from 'path'
+import path, { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import os from 'os'
 import { exec } from 'child_process'
@@ -37,13 +37,24 @@ const RAW_EXTENSIONS = [
 
 const JPG_EXTENSIONS = ['.jpg', '.jpeg'].map(ext => ext.toLowerCase())
 
-// 定义日志文件路径
-const logDir = join(__dirname, '..', 'logs')
-fs.ensureDirSync(logDir) // 确保日志目录存在
-const logFilePath = join(logDir, `app-${dayjs().format('YYYY-MM-DD')}.log`)
+// 日志相关变量
+let logDir: string
+let logFilePath: string
+
+// 初始化日志系统
+function initializeLogging() {
+  logDir = join(app.getPath('userData'), 'logs')
+  fs.ensureDirSync(logDir) // 确保日志目录存在
+  logFilePath = join(logDir, `app-${dayjs().format('YYYY-MM-DD')}.log`)
+}
 
 // 封装日志记录函数
 function writeToLog(level: string, message: string, ...args: any[]) {
+  // 如果日志系统还未初始化，只在控制台输出
+  if (!logFilePath) {
+    console.log(`${dayjs().format('YYYY-MM-DD HH:mm:ss')} [${level.toUpperCase()}] - ${message}`)
+    return
+  }
   const timestamp = dayjs().format('YYYY-MM-DD HH:mm:ss')
   let logMessage = `${timestamp} [${level.toUpperCase()}] - ${message}`
 
@@ -214,19 +225,19 @@ function createWindowInternal(): void {
   // 如果窗口不存在或已被销毁，创建新窗口
   try {
     // 设置图标路径 - 优先使用PNG格式
-    let iconPath: string | undefined = path.join(process.cwd(), 'build/icon.png');
+    let iconPath: string | undefined = path.join(__dirname, '../build/icon.png');
     
     // 如果PNG不存在，则根据平台选择其他格式
     if (!fs.existsSync(iconPath)) {
       if (process.platform === 'darwin') {
         // macOS
-        iconPath = path.join(process.cwd(), 'build/icon.icns');
+        iconPath = path.join(__dirname, '../build/icon.icns');
       } else if (process.platform === 'win32') {
         // Windows
-        iconPath = path.join(process.cwd(), 'build/icon.ico');
+        iconPath = path.join(__dirname, '../build/icon.ico');
       } else {
         // Linux
-        iconPath = path.join(process.cwd(), 'build/icon.png');
+        iconPath = path.join(__dirname, '../build/icon.png');
       }
     }
 
@@ -245,7 +256,7 @@ function createWindowInternal(): void {
       autoHideMenuBar: true,
       ...(iconPath ? { icon: iconPath } : {}),
       webPreferences: {
-        preload: path.join(process.cwd(), 'dist-electron/preload.mjs'),
+        preload: path.join(__dirname, 'preload.mjs'),
         sandbox: false,
         contextIsolation: true,
         nodeIntegration: false,
@@ -284,9 +295,9 @@ function createWindowInternal(): void {
       // 在窗口显示后再次尝试设置图标
       if (process.platform === 'darwin') {
         // 优先使用PNG格式
-        let iconPath = path.join(process.cwd(), 'build/icon.png');
+        let iconPath = path.join(__dirname, '../build/icon.png');
         if (!fs.existsSync(iconPath)) {
-          iconPath = path.join(process.cwd(), 'build/icon.icns');
+          iconPath = path.join(__dirname, '../build/icon.icns');
         }
         
         if (fs.existsSync(iconPath)) {
@@ -310,8 +321,9 @@ function createWindowInternal(): void {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
     writeToLog('info', `开发环境，加载 URL: ${process.env.VITE_DEV_SERVER_URL}`)
   } else {
-    mainWindow.loadFile(path.join(process.cwd(), 'dist/index.html'))
-    writeToLog('info', `生产环境，加载文件: ${path.join(process.cwd(), 'dist/index.html')}`)
+    const htmlPath = path.join(__dirname, '../dist/index.html')
+    mainWindow.loadFile(htmlPath)
+    writeToLog('info', `生产环境，加载文件: ${htmlPath}`)
   }
 
   // Set up electron-toolkit optimizer
@@ -321,6 +333,9 @@ function createWindowInternal(): void {
 
 // 这将在 Electron 应用程序准备就绪后创建窗口
 app.whenReady().then(() => {
+  // 初始化日志系统
+  initializeLogging()
+  
   createWindowInternal() // 在应用准备就绪后创建窗口
 
   // IPC 主进程处理器
@@ -623,7 +638,9 @@ async function getRemovableDrives(): Promise<Array<{path: string, label: string}
         'Preboot',
         'Recovery',
         'VM',
-        'Data'
+        'Data',
+        '光影拷卡助手',  // 排除应用自身的DMG挂载点
+        'photo-copy-app' // 排除可能的英文名称
       ]
       
       for (const volume of volumes) {
@@ -636,6 +653,18 @@ async function getRemovableDrives(): Promise<Array<{path: string, label: string}
         try {
           const stats = await fs.stat(volumePath)
           if (stats.isDirectory()) {
+            // 检查是否是DMG挂载点（通过检查是否包含.app文件）
+            try {
+              const entries = await fs.readdir(volumePath)
+              const hasAppFile = entries.some(entry => entry.endsWith('.app'))
+              if (hasAppFile) {
+                writeToLog('info', `跳过DMG挂载点: ${volumePath}`)
+                continue // 跳过包含.app文件的挂载点（通常是DMG）
+              }
+            } catch (error) {
+              // 如果无法读取目录，继续处理
+            }
+            
             // 进一步检查是否像是可移动设备（包含典型的相机文件夹结构）
             const hasTypicalCameraFolders = await checkForCameraFolders(volumePath)
             
@@ -736,8 +765,8 @@ function startSDCardMonitoring() {
   // 立即检测一次当前驱动器状态
   updateDrivesList()
   
-  // 每2秒检测一次SD卡变化
-  sdCardMonitorInterval = setInterval(updateDrivesList, 2000)
+  // 每1秒检测一次SD卡变化
+  sdCardMonitorInterval = setInterval(updateDrivesList, 1000)
 }
 
 // 停止SD卡监控

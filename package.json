@@ -1,7 +1,7 @@
 {
   "name": "photo-copy-app---template-vue",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.1",
   "description": "一款专为摄影师和摄影爱好者设计的智能SD卡文件拷贝工具",
   "author": "光影拷卡助手开发团队",
   "type": "module",
@@ -17,6 +17,7 @@
     "clear-icon-cache": "node scripts/clear-icon-cache.cjs"
   },
   "dependencies": {
+    "@electron-toolkit/utils": "^4.0.0",
     "@element-plus/icons-vue": "^2.3.1",
     "@types/crypto-js": "^4.2.2",
     "@types/fs-extra": "^11.0.4",
@@ -27,7 +28,6 @@
     "vue": "^3.4.21"
   },
   "devDependencies": {
-    "@electron-toolkit/utils": "^4.0.0",
     "@vitejs/plugin-vue": "^5.0.4",
     "electron": "^30.0.1",
     "electron-builder": "^24.13.3",
