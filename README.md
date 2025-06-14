@@ -118,7 +118,7 @@
 ### 项目结构
 ```
 photo-copy-app/
-├── src/
+├── src/                      # 源代码目录
 │   ├── main/                 # Electron主进程
 │   │   └── index.ts          # 主进程逻辑、IPC通信、文件操作
 │   ├── renderer/             # Vue渲染进程
@@ -128,6 +128,11 @@ photo-copy-app/
 │   │   └── index.html        # HTML模板
 │   └── preload/              # 预加载脚本
 │       └── index.ts          # 安全的IPC接口定义
+├── electron/                 # Electron配置文件
+│   ├── preload.ts            # 预加载脚本源文件
+│   └── electron-env.d.ts     # Electron类型定义
+├── public/                   # 公共资源目录
+│   └── vite.svg              # 应用图标（favicon）
 ├── build/                    # 构建资源目录
 │   ├── icon.svg              # 图标源文件
 │   ├── icon.png              # Linux图标
@@ -141,13 +146,19 @@ photo-copy-app/
 │   ├── setup-rounded-icon.cjs # 圆角图标设置
 │   ├── clear-icon-cache.cjs  # 清除图标缓存
 │   └── README.md             # 脚本使用说明
-├── dist-electron/            # 构建输出目录
-├── logs/                     # 应用日志目录
-├── CUSTOM_ICON_GUIDE.md      # 自定义图标指南
+├── node_modules/             # 项目依赖包（npm install生成）
+├── dist-electron/            # Electron构建输出目录
+├── dist/                     # 前端构建输出目录（构建时生成）
+├── release/                  # 应用打包输出目录
+├── logs/                     # 应用运行日志目录
+├── index.html                # 应用入口HTML文件
 ├── package.json              # 项目配置和依赖
+├── package-lock.json         # 依赖版本锁定文件
 ├── vite.config.ts            # Vite构建配置
 ├── tsconfig.json             # TypeScript配置
-└── electron-builder.json5    # 应用打包配置
+├── electron-builder.json5    # 应用打包配置
+├── CUSTOM_ICON_GUIDE.md      # 自定义图标指南
+└── README.md                 # 项目说明文档
 ```
 
 ## 🔧 开发指南
