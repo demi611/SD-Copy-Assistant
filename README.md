@@ -3,7 +3,7 @@
 一款专为摄影师和摄影爱好者设计的智能SD卡文件拷贝工具，让您的照片和视频管理变得简单高效。
 
 ![应用截图](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
-![版本](https://img.shields.io/badge/Version-1.0.0-green)
+![版本](https://img.shields.io/badge/Version-1.0.1-green)
 ![技术栈](https://img.shields.io/badge/Tech-Electron%20%7C%20Vue3%20%7C%20TypeScript-orange)
 
 ## ✨ 核心特性
