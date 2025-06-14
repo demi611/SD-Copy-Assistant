@@ -618,7 +618,7 @@ const startCopy = async () => {
 
 const openGithub = () => {
   window.electron.logMessage('info', '打开 GitHub 链接');
-  window.electron.openExternalLink('https://github.com/your-username/photo-copy-app'); //TODO: 更新为实际仓库地址
+  window.electron.openExternalLink('https://github.com/demi611/SD-Copy-Assistant');
 }
 
 const ejectSDCard = async () => {
