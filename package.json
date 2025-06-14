@@ -1,7 +1,7 @@
 {
-  "name": "photo-copy-app---template-vue",
+  "name": "PhotoCopyAssistant",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "一款专为摄影师和摄影爱好者设计的智能SD卡文件拷贝工具",
   "author": "光影拷卡助手开发团队",
   "type": "module",
