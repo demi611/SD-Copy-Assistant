@@ -3,7 +3,7 @@
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
   "appId": "com.photocopytool.app",
   "asar": true,
-  "productName": "PhotoCopyAssistant",
+  "productName": "光影拷卡助手",
   "directories": {
     "output": "release/${version}",
     "buildResources": "build"
@@ -22,7 +22,6 @@
     ],
     "icon": "build/icon.icns",
     "category": "public.app-category.photography",
-    "productName": "光影拷卡助手",
     "artifactName": "光影拷卡助手-Mac-${version}-Installer.${ext}"
   },
   "win": {
