@@ -3,8 +3,9 @@
 一款专为摄影师和摄影爱好者设计的智能SD卡文件拷贝工具，让您的照片和视频管理变得简单高效。
 
 ![应用截图](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
-![版本](https://img.shields.io/badge/Version-1.0.1-green)
+![版本](https://img.shields.io/badge/Version-1.0.2-green)
 ![技术栈](https://img.shields.io/badge/Tech-Electron%20%7C%20Vue3%20%7C%20TypeScript-orange)
+![代码质量](https://img.shields.io/badge/Code%20Quality-重构优化-brightgreen)
 
 ## ✨ 核心特性
 
@@ -117,10 +118,15 @@
 
 ### 项目结构
 ```
-photo-copy-app/
+SD-Copy-Assistant/
 ├── src/                      # 源代码目录
 │   ├── main/                 # Electron主进程
-│   │   └── index.ts          # 主进程逻辑、IPC通信、文件操作
+│   │   ├── index.ts          # 主进程入口（精简后）
+│   │   ├── constants.ts      # 统一常量管理
+│   │   ├── types.ts          # 统一类型定义
+│   │   └── utils/            # 工具模块
+│   │       ├── logger.ts     # 日志管理模块
+│   │       └── fileOperations.ts # 文件操作模块
 │   ├── renderer/             # Vue渲染进程
 │   │   └── src/
 │   │       ├── App.vue       # 主界面组件
@@ -134,9 +140,6 @@ photo-copy-app/
 │   ├── assets/               # 静态资源
 │   │   └── vue.svg           # Vue图标
 │   └── vite-env.d.ts         # Vite环境类型定义
-├── electron/                 # Electron配置文件
-│   ├── preload.ts            # 预加载脚本源文件
-│   └── electron-env.d.ts     # Electron类型定义
 ├── public/                   # 公共资源目录
 │   └── vite.svg              # 应用图标（favicon）
 ├── build/                    # 构建资源目录
@@ -176,7 +179,7 @@ photo-copy-app/
 ```bash
 # 克隆项目
 git clone <repository-url>
-cd photo-copy-app
+cd SD-Copy-Assistant
 
 # 安装依赖
 npm install
@@ -231,6 +234,26 @@ npm run clear-icon-cache
 - **Windows**: NSIS安装程序
 - **Linux**: AppImage便携应用
 
+## 📈 最新更新 (v1.0.2)
+
+### 🚀 代码重构优化
+- **模块化重构**：将主进程拆分为多个独立模块，提升代码可维护性
+- **常量统一管理**：创建 `constants.ts` 统一管理文件扩展名和应用配置
+- **类型定义集中化**：创建 `types.ts` 统一管理所有类型定义
+- **工具模块化**：将日志和文件操作独立为工具模块
+- **性能优化**：优化文件哈希计算和扫描逻辑，提升处理速度
+
+### 🔧 代码质量提升
+- **删除冗余代码**：移除重复的 preload 文件和未使用的导入
+- **清理调试代码**：移除生产环境的 console 语句
+- **统一错误处理**：改进错误处理逻辑和日志记录
+- **类型安全增强**：完善 TypeScript 类型定义
+
+### 📊 性能改进
+- **文件处理优化**：减少重复的哈希计算，提升拷贝效率
+- **内存使用优化**：改进大文件处理逻辑
+- **代码结构优化**：提升代码可读性和维护性
+
 ## 📋 系统要求
 
 ### 最低配置
@@ -282,6 +305,12 @@ A: 使用 `npm run setup-icon-with-padding` 命令，它会自动添加适当的
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
 
+### 代码规范
+- 使用 TypeScript 进行类型安全的开发
+- 遵循模块化设计原则
+- 保持代码简洁和可读性
+- 添加适当的注释和文档
+
 ## 📄 许可证
 
 本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
@@ -296,4 +325,4 @@ A: 使用 `npm run setup-icon-with-padding` 命令，它会自动添加适当的
 
 ---
 
-**光影拷卡助手** - 让每一张照片都安全到达目的地 📸✨ 
+**光影拷卡助手** - 让每一张照片都安全到达目的地 📸✨
