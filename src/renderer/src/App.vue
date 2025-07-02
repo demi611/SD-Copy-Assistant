@@ -95,11 +95,19 @@
                       <el-icon><PriceTag /></el-icon>拍摄活动名称
                     </span>
                   </template>
-                  <el-input v-model="form.activityName" placeholder="请输入活动名称（不填默认为：媒体文件）" class="custom-input">
-                     <template #suffix>
-                      <el-icon><EditPen /></el-icon>
-                    </template>
-                  </el-input>
+                  <div class="custom-input-group">
+                    <el-input 
+                      v-model="form.activityName" 
+                      placeholder="请输入活动名称（不填默认为：媒体文件）" 
+                      class="custom-input"
+                      clearable
+                      @clear="onActivityNameClear"
+                    >
+                      <template #suffix>
+                        <el-icon><EditPen /></el-icon>
+                      </template>
+                    </el-input>
+                  </div>
                 </el-form-item>
 
                 <!-- 选择拍摄日期 -->
@@ -684,6 +692,11 @@ const clearMessages = () => {
   messages.sdCard = ''
   messages.dates = ''
   messages.copyResult = ''
+}
+
+// 处理活动名称输入框清空事件
+const onActivityNameClear = () => {
+  form.activityName = ''
 }
 
 const isRemovableDrive = (dir: string) => {
