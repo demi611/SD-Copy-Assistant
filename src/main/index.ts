@@ -5,7 +5,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 import { app, BrowserWindow, ipcMain, dialog, shell, nativeImage } from 'electron'
-import path, { join } from 'path'
+import path from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import os from 'os'
 import { exec } from 'child_process'
@@ -15,194 +15,20 @@ const execAsync = promisify(exec)
 
 // 应用程序初始化
 electronApp.setAppUserModelId('com.photo-copy-app')
-import fs from 'fs-extra' // 引入 fs-extra 用于日志
-import dayjs from 'dayjs' // 引入 dayjs 用于日志时间戳
-import crypto from 'crypto-js' // 用于 SHA256
-// @ts-ignore
-import type { FileCopyRequest, FileCopyProgress } from '../preload' // 从 preload 导入类型
 
-// Constants for file extensions (moved from renderer/utils)
-const IMAGE_EXTENSIONS = [
-  '.jpg', '.jpeg', '.png',
-  '.raw', '.nef', '.cr2', '.CR3',
-  '.arw', '.dng', '.raf', '.orf', '.pef', '.srw', '.x3f'
-].map(ext => ext.toLowerCase())
+// 导入工具模块
+import fs from 'fs-extra'
+import { initializeLogging, writeToLog } from './utils/logger'
+import { 
+  scanMediaFiles, 
+  getFileModifiedDate, 
+  copyAndVerifyFile
+} from './utils/fileOperations'
+import { IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, RAW_EXTENSIONS, JPG_EXTENSIONS } from './constants'
+import type { FileCopyRequest, FileCopyProgress, LogLevel } from './types'
 
-const VIDEO_EXTENSIONS = ['.mp4', '.avi', '.mov'].map(ext => ext.toLowerCase())
-
-const RAW_EXTENSIONS = [
-  '.raw', '.nef', '.cr2', '.CR3',
-  '.arw', '.dng', '.raf', '.orf', '.pef', '.srw', '.x3f'
-].map(ext => ext.toLowerCase())
-
-const JPG_EXTENSIONS = ['.jpg', '.jpeg'].map(ext => ext.toLowerCase())
-
-// 日志相关变量
-let logDir: string
-let logFilePath: string
-
-// 初始化日志系统
-function initializeLogging() {
-  logDir = join(app.getPath('userData'), 'logs')
-  fs.ensureDirSync(logDir) // 确保日志目录存在
-  logFilePath = join(logDir, `app-${dayjs().format('YYYY-MM-DD')}.log`)
-}
-
-// 封装日志记录函数
-function writeToLog(level: string, message: string, ...args: any[]) {
-  // 如果日志系统还未初始化，只在控制台输出
-  if (!logFilePath) {
-    console.log(`${dayjs().format('YYYY-MM-DD HH:mm:ss')} [${level.toUpperCase()}] - ${message}`)
-    return
-  }
-  const timestamp = dayjs().format('YYYY-MM-DD HH:mm:ss')
-  let logMessage = `${timestamp} [${level.toUpperCase()}] - ${message}`
-
-  if (args.length > 0) {
-    const processedArgs = args.map(arg => {
-      if (arg instanceof Error) {
-        // 如果是 Error 对象，记录其消息和堆栈
-        return `Error: ${arg.message}\nStack: ${arg.stack}`;
-      } else if (typeof arg === 'object' && arg !== null) {
-        // 对于其他对象，尝试将其字符串化，处理可能的循环引用
-        try {
-          return JSON.stringify(arg, (_, value) => {
-            if (typeof value === 'object' && value !== null) {
-              // 检测并替换循环引用
-              const cache = new Set();
-              return JSON.stringify(value, (_, v) => {
-                if (typeof v === 'object' && v !== null) {
-                  if (cache.has(v)) {
-                    // 循环引用已找到，丢弃键
-                    return; 
-                  }
-                  // 将值存储在我们的集合中
-                  cache.add(v);
-                }
-                return v;
-              });
-            }
-            return value;
-          });
-        } catch (e) {
-          return `[Circular or complex object]`; // 复杂对象的备用处理
-        }
-      } else {
-        return String(arg);
-      }
-    });
-    logMessage += ` ${processedArgs.join(' ')}`;
-  }
-  
-  console.log(logMessage.trim()) // 在控制台也输出
-  fs.appendFile(logFilePath, logMessage + '\n', (err) => { // 添加换行符
-    if (err) console.error('写入主进程日志失败:', err)
-  })
-}
-
-// --- 文件操作 (从 FileUtils 调整) ---
-function getFileModifiedDate(filePath: string): string {
-  try {
-    const stats = fs.statSync(filePath)
-    return dayjs(stats.mtime).format('YYYYMMDD')
-  } catch (error) {
-    writeToLog('error', `Failed to get modified date for ${filePath}:`, error)
-    return '00000000'
-  }
-}
-
-async function calculateFileHash(filePath: string): Promise<string> {
-  try {
-    const buffer = await fs.readFile(filePath)
-    const wordArray = crypto.lib.WordArray.create(buffer as any) 
-    return crypto.SHA256(wordArray).toString()
-  } catch (error) {
-    writeToLog('error', `Failed to calculate hash for ${filePath}:`, error)
-    throw error
-  }
-}
-
-async function scanMediaFiles(dirPath: string): Promise<string[]> {
-  const allFiles: string[] = []
-  const validExtensions = [...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS]
-  try {
-    const entries = await fs.readdir(dirPath, { withFileTypes: true })
-    for (const entry of entries) {
-      const fullPath = join(dirPath, entry.name)
-      if (entry.isDirectory()) {
-        if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === '$RECYCLE.BIN' || entry.name === 'System Volume Information') {
-          continue
-        }
-        allFiles.push(...(await scanMediaFiles(fullPath)))
-      } else if (entry.isFile() && validExtensions.includes(path.extname(entry.name).toLowerCase())) {
-        allFiles.push(fullPath)
-      }
-    }
-  } catch (error) {
-    writeToLog('error', `Failed to scan directory ${dirPath}:`, error)
-  }
-  return allFiles
-}
-
-async function createTargetDir(baseDir: string, date: string, activityName: string): Promise<string> {
-  const dirName = `${date}_${activityName}`
-  const targetDir = join(baseDir, dirName)
-  try {
-    await fs.ensureDir(targetDir)
-    return targetDir
-  } catch (error) {
-    writeToLog('error', `Failed to create target directory ${targetDir}:`, error)
-    throw error
-  }
-}
-
-// 定义文件拷贝结果类型
-type FileCopyResult = {
-  status: 'copied' | 'skipped' | 'failed';
-  error?: string;
-};
-
-async function copyAndVerifyFile(
-  sourcePath: string,
-  targetDir: string,
-  separateRawJpg: boolean
-): Promise<FileCopyResult> {
-  try {
-    const fileName = path.basename(sourcePath)
-    const extension = path.extname(fileName).toLowerCase()
-    let actualTargetDir = targetDir
-
-    if (separateRawJpg) {
-      if (RAW_EXTENSIONS.includes(extension)) {
-        actualTargetDir = join(targetDir, 'RAW')
-      } else if (JPG_EXTENSIONS.includes(extension)) {
-        actualTargetDir = join(targetDir, 'JPG')
-      }
-      await fs.ensureDir(actualTargetDir)
-    }
-
-    const targetPath = join(actualTargetDir, fileName)
-    if (await fs.pathExists(targetPath)) {
-      const sourceHash = await calculateFileHash(sourcePath)
-      const targetHash = await calculateFileHash(targetPath)
-      if (sourceHash === targetHash) {
-        writeToLog('info', `文件 ${fileName} 已存在且内容相同，跳过。`)
-        return { status: 'skipped' } // 返回跳过状态
-      }
-    }
-    await fs.copy(sourcePath, targetPath, { overwrite: true })
-    const sourceHashAfterCopy = await calculateFileHash(sourcePath)
-    const targetHashAfterCopy = await calculateFileHash(targetPath)
-    if (sourceHashAfterCopy !== targetHashAfterCopy) {
-      writeToLog('error', `文件哈希不匹配: ${sourcePath} 和 ${targetPath}。`)
-      return { status: 'failed', error: `哈希不匹配: ${path.basename(sourcePath)}` } // 返回失败状态
-    }
-    return { status: 'copied' } // 返回成功拷贝状态
-  } catch (error: any) {
-    writeToLog('error', `拷贝或校验文件失败: ${sourcePath}:`, error)
-    return { status: 'failed', error: error.message } // 返回失败状态
-  }
-}
+// 导入文件操作工具
+import { createTargetDir } from './utils/fileOperations'
 
 let mainWindow: BrowserWindow | null = null
 let isQuitting = false // 添加标志来跟踪应用是否正在退出
@@ -406,7 +232,7 @@ app.whenReady().then(() => {
 
   // 添加日志消息处理器
   ipcMain.on('log-message', (_event, level: string, message: string, ...args: any[]) => {
-    writeToLog(level, `[渲染进程] ${message}`, ...args);
+    writeToLog(level as LogLevel, `[渲染进程] ${message}`, ...args);
   });
 
   // 添加打开外部链接处理器

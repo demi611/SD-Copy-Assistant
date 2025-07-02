@@ -363,15 +363,12 @@ const autoDetectSDCard = async () => {
       scanDates();
     }
   } catch (error: any) {
-    console.warn('自动检测移动磁盘失败:', error)
+    // 自动检测移动磁盘失败，静默处理
   }
 }
 
 onMounted(async () => {
-  console.log('App mounted, checking window.electron:', window.electron);
-  
   if (!window.electron) {
-    console.error('window.electron is not available!');
     errors.general = '应用程序初始化失败：无法访问 Electron API';
     return;
   }
@@ -382,7 +379,7 @@ onMounted(async () => {
     if (defaultDirs.pictures) form.imageTargetDir = defaultDirs.pictures;
     if (defaultDirs.videos) form.videoTargetDir = defaultDirs.videos;
   } catch (error) {
-    console.warn('获取默认目录失败:', error);
+    // 获取默认目录失败，使用空字符串
   }
   
   const progressHandler = (progress: FileCopyProgress) => {
@@ -440,7 +437,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  console.log('App 组件卸载')
   if (unsubscribeFileCopyProgress) {
     unsubscribeFileCopyProgress()
   }
@@ -458,7 +454,6 @@ const selectDirectory = async (): Promise<string | null> => {
     if (!result) return null
     return result
   } catch (error: any) {
-    console.error('选择目录失败:', error.message);
     errors.general = '选择目录失败: ' + error.message
     return null
   }
@@ -566,7 +561,6 @@ const startCopy = async () => {
   copyProgress.value = 0;
   statusMessage.value = '正在初始化拷贝...';
 
-  console.log('[App.vue] form.selectedDates before sending:', JSON.parse(JSON.stringify(form.selectedDates)));
   window.electron.logMessage('debug', '[App.vue] form.selectedDates before sending:', JSON.parse(JSON.stringify(form.selectedDates)));
 
   // 如果活动名称为空，使用默认名称

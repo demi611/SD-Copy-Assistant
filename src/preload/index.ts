@@ -5,25 +5,8 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 
 console.log('Preload script started.');
 
-export interface FileCopyRequest {
-  sdCardDir: string;
-  imageTargetDir: string;
-  videoTargetDir: string;
-  activityName: string;
-  selectedDates: string[];
-  separateRawJpg: boolean;
-  copyImages: boolean;
-  copyVideos: boolean;
-}
-
-export interface FileCopyProgress {
-  percentage: number;
-  message: string;
-  fileProcessed?: string; // 当前处理的文件名
-  error?: string; // 如果当前文件处理失败的错误信息
-  totalFiles?: number; // 总文件数
-  processedFiles?: number; // 已处理文件数（包括已拷贝和已跳过的）
-}
+// 从主进程类型文件导入类型定义
+import type { FileCopyRequest, FileCopyProgress } from '../main/types'
 
 const electronApi = {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
@@ -100,4 +83,7 @@ export interface IElectronAPI {
   ejectSDCard: (sdCardPath: string) => Promise<{ success: boolean; message: string }>
   onSDCardInserted: (callback: (drive: {path: string, label: string}) => void) => () => void
   onSDCardRemoved: (callback: (removedPaths: string[]) => void) => () => void
-} 
+}
+
+// 重新导出类型供其他模块使用
+export type { FileCopyRequest, FileCopyProgress } 
