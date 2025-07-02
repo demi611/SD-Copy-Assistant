@@ -359,6 +359,8 @@ const autoDetectSDCard = async () => {
           messages.sdCard = ''
         }
       }, 5000)
+      // 自动检测到移动磁盘后自动获取日期
+      scanDates();
     }
   } catch (error: any) {
     console.warn('自动检测移动磁盘失败:', error)
