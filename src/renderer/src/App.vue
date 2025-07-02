@@ -42,30 +42,30 @@
                   </div>
                 </el-form-item>
 
-                <!-- SD卡目录 -->
+                <!-- 移动磁盘目录 -->
                 <el-form-item :class="{ 'is-error': !form.sdCardDir && sdDirTouched }">
                   <template #label>
                     <span class="custom-label">
-                       <el-icon><CreditCard /></el-icon>SD卡目录
+                       <el-icon><CreditCard /></el-icon>移动磁盘目录
                     </span>
                   </template>
                   <div class="custom-input-group">
                     <el-input 
                       v-model="form.sdCardDir" 
-                      placeholder="请选择SD卡目录" 
+                      placeholder="请选择移动磁盘目录" 
                       class="custom-input"
                       @blur="sdDirTouched = true"
                       clearable
                       @clear="onSdCardDirClear"
                     />
-                    <!-- 当没有SD卡或不是可移动驱动器时显示选择目录按钮 -->
+                    <!-- 当没有移动磁盘或不是可移动驱动器时显示选择目录按钮 -->
                     <el-button 
                       v-if="shouldShowSelectDir"
                       @click="selectSdCardDir" 
                       class="custom-date-action-button">
                       <el-icon><FolderOpened /></el-icon>选择目录
                     </el-button>
-                    <!-- 只有自动检测到的SD卡路径才显示推出按钮 -->
+                    <!-- 只有自动检测到的移动磁盘路径才显示推出按钮 -->
                     <el-button 
                       v-if="shouldShowEject"
                       @click="ejectSDCard" 
@@ -74,11 +74,11 @@
                       class="custom-eject-button"
                       type="warning">
                       <el-icon><RemoveFilled /></el-icon>
-                      推出SD卡
+                      推出磁盘
                     </el-button>
                   </div>
                   <div v-if="!form.sdCardDir && sdDirTouched" class="custom-error-text">
-                    <el-icon><WarningFilled /></el-icon>错误：未选择SD卡目录
+                    <el-icon><WarningFilled /></el-icon>错误：未选择移动磁盘目录
                   </div>
                   <div v-if="messages.sdCard" class="custom-message-text" :class="`is-${messages.sdCardType}`">
                     <el-icon v-if="messages.sdCardType === 'success'"><SuccessFilled /></el-icon>
@@ -88,11 +88,11 @@
                   </div>
                 </el-form-item>
 
-                <!-- 活动名称 -->
+                <!-- 拍摄活动名称 -->
                 <el-form-item>
                   <template #label>
                     <span class="custom-label">
-                      <el-icon><PriceTag /></el-icon>活动名称
+                      <el-icon><PriceTag /></el-icon>拍摄活动名称
                     </span>
                   </template>
                   <el-input v-model="form.activityName" placeholder="请输入活动名称（不填默认为：媒体文件）" class="custom-input">
@@ -102,17 +102,17 @@
                   </el-input>
                 </el-form-item>
 
-                <!-- 选择日期 -->
+                <!-- 选择拍摄日期 -->
                 <el-form-item :class="{ 'is-error': errors.selectedDates }">
                    <template #label>
                     <span class="custom-label">
-                      <el-icon><Calendar /></el-icon>选择日期
+                      <el-icon><Calendar /></el-icon>选择拍摄日期
                     </span>
                   </template>
                   <div class="custom-input-group">
                     <el-select 
                       v-model="form.selectedDates" 
-                      multiple 
+                      multiple
                       placeholder="获取日期成功后，点击下拉选择拷贝日期" 
                       class="custom-select" 
                     >
@@ -233,12 +233,12 @@
           <div class="help-section">
             <h4>🚀 快速开始</h4>
                          <ol>
-               <li>插入SD卡，应用会自动检测并填充SD卡路径</li>
+               <li>插入移动磁盘，应用会自动检测并填充移动磁盘路径</li>
                <li>设置图片和视频的目标存储目录</li>
-               <li>点击"获取日期"扫描SD卡中的文件日期</li>
+               <li>点击"获取日期"扫描移动磁盘中的文件日期</li>
                <li>选择要拷贝的日期或选择"全部日期"</li>
                <li>点击"开始拷贝"</li>
-               <li>拷贝完成后，点击"推出SD卡"安全移除</li>
+               <li>拷贝完成后，点击"推出移动磁盘"安全移除</li>
              </ol>
           </div>
 
@@ -246,7 +246,7 @@
             <h4>⚙️ 详细设置</h4>
             <ul>
                              <li><strong>目标目录：</strong>分别设置图片和视频的存储位置</li>
-               <li><strong>SD卡选择：</strong>自动检测时显示"推出SD卡"，手动选择时显示"选择目录"</li>
+               <li><strong>移动磁盘选择：</strong>自动检测时显示"推出磁盘"，手动选择时显示"选择目录"</li>
                <li><strong>活动名称：</strong>可选，用于文件夹命名（如"旅行照片"），默认为"媒体文件"</li>
                <li><strong>日期选择：</strong>支持多选特定日期或选择全部，日期按最新优先排序</li>
                <li><strong>RAW+JPG分离：</strong>勾选后会自动创建RAW和JPG子文件夹</li>
@@ -266,7 +266,7 @@
             <h4>🔒 安全功能</h4>
             <ul>
               <li><strong>文件完整性校验：</strong>拷贝完成后自动验证文件哈希值</li>
-              <li><strong>安全推出：</strong>拷贝完成后可点击"推出SD卡"按钮安全移除</li>
+              <li><strong>安全推出：</strong>拷贝完成后可点击"推出磁盘"按钮安全移除</li>
               <li><strong>重复检测：</strong>自动跳过已存在的相同文件</li>
               <li><strong>错误恢复：</strong>详细的错误提示和日志记录</li>
             </ul>
@@ -292,7 +292,7 @@ import {
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import type { FileCopyRequest, FileCopyProgress } from '../../preload'
 
-const sdDirTouched = ref(false); // 仅在失焦后显示SD卡错误
+const sdDirTouched = ref(false); // 仅在失焦后显示移动磁盘错误
 
 // 错误和消息状态管理
 const errors = reactive({
@@ -304,10 +304,10 @@ const errors = reactive({
 
 // 各区域的提示消息
 const messages = reactive({
-  sdCard: '', // SD卡相关提示
+  sdCard: '', // 移动磁盘相关提示
   dates: '', // 日期相关提示
   copyResult: '', // 拷贝结果提示
-  sdCardType: 'info' as 'info' | 'success' | 'error', // SD卡消息类型
+  sdCardType: 'info' as 'info' | 'success' | 'error', // 移动磁盘消息类型
   datesType: 'info' as 'info' | 'success' | 'error', // 日期消息类型
   copyResultType: 'info' as 'info' | 'success' | 'error' // 拷贝结果消息类型
 })
@@ -344,7 +344,7 @@ const refreshRemovableDrives = async () => {
   removableDrives.value = await window.electron.getRemovableDrives()
 }
 
-// 自动检测SD卡
+// 自动检测移动磁盘
 const autoDetectSDCard = async () => {
   await refreshRemovableDrives()
   try {
@@ -352,16 +352,16 @@ const autoDetectSDCard = async () => {
     if (drives && drives.length > 0) {
       form.sdCardDir = drives[0].path
       sdDirTouched.value = false
-      messages.sdCard = `检测到SD卡：${drives[0].label} (${drives[0].path})`;
+      messages.sdCard = `检测到移动磁盘：${drives[0].label} (${drives[0].path})`;
       messages.sdCardType = 'success'
       setTimeout(() => {
-        if (messages.sdCard && messages.sdCard.includes('检测到SD卡')) {
+        if (messages.sdCard && messages.sdCard.includes('检测到移动磁盘')) {
           messages.sdCard = ''
         }
       }, 5000)
     }
   } catch (error: any) {
-    console.warn('自动检测SD卡失败:', error)
+    console.warn('自动检测移动磁盘失败:', error)
   }
 }
 
@@ -404,15 +404,15 @@ onMounted(async () => {
 
   unsubscribeFileCopyProgress = window.electron.onFileCopyProgress(progressHandler);
   
-  // 设置SD卡事件监听
+  // 设置移动磁盘事件监听
   unsubscribeSDCardInserted = window.electron.onSDCardInserted((drive) => {
     form.sdCardDir = drive.path;
     sdDirTouched.value = false;
     refreshRemovableDrives()
-    messages.sdCard = `检测到SD卡插入：${drive.label} (${drive.path})`;
+    messages.sdCard = `检测到移动磁盘插入：${drive.label} (${drive.path})`;
     messages.sdCardType = 'success'
     setTimeout(() => {
-      if (messages.sdCard && messages.sdCard.includes('检测到SD卡插入')) {
+      if (messages.sdCard && messages.sdCard.includes('检测到移动磁盘插入')) {
         messages.sdCard = ''
       }
     }, 5000)
@@ -423,17 +423,17 @@ onMounted(async () => {
       form.sdCardDir = '';
       sdDirTouched.value = true;
       refreshRemovableDrives()
-      messages.sdCard = 'SD卡已被移除，请重新选择源目录';
+      messages.sdCard = '移动磁盘已被移除，请重新选择源目录';
       messages.sdCardType = 'error'
       setTimeout(() => {
-        if (messages.sdCard === 'SD卡已被移除，请重新选择源目录') {
+        if (messages.sdCard === '移动磁盘已被移除，请重新选择源目录') {
           messages.sdCard = ''
         }
       }, 5000)
     }
   });
   
-  // 自动检测SD卡（初始检测）
+  // 自动检测移动磁盘（初始检测）
   autoDetectSDCard();
 });
 
@@ -493,7 +493,7 @@ const scanDates = async () => {
   sdDirTouched.value = true; // 如果尝试扫描但未选择，也标记为已触碰
   
   if (!form.sdCardDir) {
-    // SD卡错误已经通过现有的逻辑处理
+    // 移动磁盘错误已经通过现有的逻辑处理
     return;
   }
   
@@ -546,7 +546,7 @@ const startCopy = async () => {
     hasErrors = true
   }
   if (!form.sdCardDir) { 
-    // SD卡错误已经通过现有的逻辑处理
+    // 移动磁盘错误已经通过现有的逻辑处理
     hasErrors = true
   }
   if (form.selectedDates.length === 0) { 
@@ -627,7 +627,7 @@ const ejectSDCard = async () => {
   clearMessages()
   
   if (!form.sdCardDir) {
-    messages.sdCard = '没有选择SD卡';
+    messages.sdCard = '没有选择移动磁盘';
     messages.sdCardType = 'error'
     return;
   }
@@ -635,13 +635,13 @@ const ejectSDCard = async () => {
   ejectingSDCard.value = true;
   
   try {
-    window.electron.logMessage('info', '尝试推出SD卡:', form.sdCardDir);
+    window.electron.logMessage('info', '尝试推出移动磁盘:', form.sdCardDir);
     const result = await window.electron.ejectSDCard(form.sdCardDir);
     
     if (result.success) {
       messages.sdCard = result.message;
       messages.sdCardType = 'success'
-      // 清空SD卡路径，因为已经推出
+      // 清空移动磁盘路径，因为已经推出
       clearSDCardData();
       // 3秒后清除成功消息
       setTimeout(() => {
@@ -654,15 +654,15 @@ const ejectSDCard = async () => {
       messages.sdCardType = 'error'
     }
   } catch (error: any) {
-    window.electron.logMessage('error', '推出SD卡时发生错误:', error.message);
-    messages.sdCard = '推出SD卡失败: ' + error.message;
+    window.electron.logMessage('error', '推出移动磁盘时发生错误:', error.message);
+    messages.sdCard = '推出移动磁盘失败: ' + error.message;
     messages.sdCardType = 'error'
   } finally {
     ejectingSDCard.value = false;
   }
 }
 
-// 清空SD卡相关数据的统一函数
+// 清空移动磁盘相关数据的统一函数
 const clearSDCardData = () => {
   form.sdCardDir = '';
   availableDates.value = [];
@@ -714,7 +714,7 @@ html, body, #app {
   height: calc(100vh - 40px); /* 100vh 减去页脚高度 */
 }
 
-/* SD卡检测消息样式 */
+/* 移动磁盘检测消息样式 */
 .sd-card-message {
   padding: 4px 0;
 }
@@ -821,7 +821,7 @@ html, body, #app {
 .custom-label {
   display: flex;
   align-items: center;
-  font-size: 0.9em;
+  font-size: 1em;
   color: #333;
   font-weight: 500;
 }
@@ -831,41 +831,18 @@ html, body, #app {
   font-size: 1.1em;
 }
 
-/* 通用输入框样式 */
-.custom-input .el-input__wrapper,
-.custom-select .el-input__wrapper {
-  border-radius: 6px !important;
+/* 恢复Element Plus原生输入框风格，仅微调圆角和边框色 */
+.el-input__wrapper {
+  border-radius: 8px !important;
+  border: 1.2px solid #e0e7ef !important;
   box-shadow: none !important;
+  background: #fff !important;
+  padding: 0 12px !important;
 }
-
-.custom-input .el-input__wrapper:hover,
-.custom-select .el-input__wrapper:hover {
-  border-color: #C0C4CC !important;
-}
-
-.custom-input .el-input__wrapper.is-focus,
-.custom-select .el-input__wrapper.is-focus {
-  border-color: #0071E3 !important; 
-  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2) !important;
-}
-
-.custom-input .el-input-group__append .el-button {
-  border-radius: 0 6px 6px 0 !important;
-  background-color: #f5f5f7;
-  color: #333;
-  border-left: 0; 
-}
-
-.custom-input .el-input-group__append .el-button:hover {
-  background-color: #e8e8ed;
-}
-
-.custom-input .el-input__suffix .el-icon { 
- color: #A8A8A8;
-}
-
-.custom-select .el-input__placeholder { 
-  color: #999;
+.el-input__wrapper.is-focus {
+  border: 1.2px solid #60a5fa !important;
+  background: #fff !important;
+  box-shadow: none !important;
 }
 
 /* 错误状态 */
@@ -929,6 +906,7 @@ html, body, #app {
   height: auto !important;
   flex-shrink: 0; /* 防止按钮收缩 */
   transition: all 0.15s ease !important;
+  min-width: 100px;
 }
 
 .custom-date-action-button:hover,
@@ -938,7 +916,7 @@ html, body, #app {
   transform: translateY(-0.5px) !important;
 }
 
-/* 推出SD卡按钮样式 */
+/* 推出移动磁盘按钮样式 */
 .custom-eject-button {
   border-radius: 6px !important;
   padding: 8px 15px !important;
@@ -950,6 +928,7 @@ html, body, #app {
   border-color: #f56c6c !important;
   color: white !important;
   transition: all 0.15s ease !important;
+  min-width: 100px;
 }
 
 .custom-eject-button:hover:not(:disabled),
@@ -1273,7 +1252,7 @@ html, body, #app {
   justify-content: center !important;
 }
 
-/* 当SD卡输入框区域有推出按钮时的特殊样式 */
+/* 当移动磁盘输入框区域有推出按钮时的特殊样式 */
 .custom-input-group .custom-date-action-button,
 .custom-input-group .custom-eject-button {
   flex-shrink: 0; /* 防止按钮被压缩 */
@@ -1317,6 +1296,7 @@ html, body {
 .main-action-card .main-action-button {
   margin-top: 0;
   margin-bottom: 0;
+  min-width: 150px;
 }
 
 .main-action-card .custom-message-text {
@@ -1394,6 +1374,54 @@ html, body {
   font-size: 13px;
   font-weight: 400;
   line-height: 1.2;
+}
+
+/* 全局样式 */
+body {
+  background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
+}
+.content-wrapper {
+  background: rgba(255,255,255,0.7);
+  border-radius: 22px;
+  box-shadow: 0 8px 32px rgba(60, 60, 120, 0.18);
+  padding: 36px 30px 18px 30px;
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 1.5px solid rgba(255,255,255,0.18);
+}
+.custom-label {
+  color: #2563eb !important;
+  font-weight: 600;
+}
+.custom-input, .custom-select {
+  border-radius: 14px !important;
+  background: rgba(255,255,255,0.6) !important;
+  border: 1.5px solid #e0e7ef !important;
+  color: #2563eb !important;
+  font-size: 13px !important;
+  backdrop-filter: blur(2px);
+}
+.custom-date-action-button, .main-action-button, .custom-eject-button {
+  border-radius: 14px !important;
+  background: linear-gradient(90deg, #60a5fa 0%, #38bdf8 100%) !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(96,165,250,0.10) !important;
+}
+.custom-date-action-button:hover, .main-action-button:hover {
+  background: linear-gradient(90deg, #2563eb 0%, #38bdf8 100%) !important;
+}
+.custom-eject-button {
+  background: linear-gradient(90deg, #fbbf24 0%, #f87171 100%) !important;
+}
+.custom-eject-button:hover {
+  background: linear-gradient(90deg, #f87171 0%, #fbbf24 100%) !important;
+}
+.copy-options-row {
+  gap: 16px !important;
+}
+.custom-checkbox {
+  color: #2563eb !important;
 }
 
 </style> 
