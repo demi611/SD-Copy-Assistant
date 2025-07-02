@@ -177,6 +177,9 @@
               </el-form>
               <!-- 主操作卡片 -->
               <div class="main-action-card">
+                <div class="main-action-error" v-if="errors.general">
+                  <el-icon><WarningFilled /></el-icon>{{ errors.general }}
+                </div>
                 <div class="action-button-container">
                   <el-button
                     type="primary"
@@ -211,6 +214,9 @@
                     <p class="custom-progress-message">{{ statusMessage }}</p>
                     <p class="custom-progress-stats" v-if="totalFiles > 0">
                       已处理 {{ processedFiles }}/{{ totalFiles }} 个文件
+                    </p>
+                    <p class="custom-progress-stats" v-if="estimatedTimeLeft">
+                      预计剩余时间：{{ estimatedTimeLeft }}
                     </p>
                   </div>
                 </div>
@@ -340,6 +346,8 @@ const availableDates = ref<string[]>([])
 const scanningDates = ref(false)
 const showHelpDialog = ref(false)
 const ejectingSDCard = ref(false)
+const copyStartTime = ref<number | null>(null)
+const estimatedTimeLeft = ref('')
 
 const removableDrives = ref<Array<{ path: string, label: string }>>([])
 
@@ -396,6 +404,17 @@ onMounted(async () => {
       statusMessage.value = progress.message || '';
       totalFiles.value = progress.totalFiles || 0;
       processedFiles.value = progress.processedFiles || 0;
+
+      // 计算预计剩余时间
+      if (copyStartTime.value && processedFiles.value > 0 && totalFiles.value > 0 && copyProgress.value < 100) {
+        const elapsed = (Date.now() - copyStartTime.value) / 1000; // 秒
+        const avgPerFile = elapsed / processedFiles.value;
+        const leftFiles = totalFiles.value - processedFiles.value;
+        const leftSec = Math.round(leftFiles * avgPerFile);
+        estimatedTimeLeft.value = formatSeconds(leftSec);
+      } else if (copyProgress.value === 100) {
+        estimatedTimeLeft.value = '';
+      }
 
       if (progress.error) {
         errors.general = progress.error;
@@ -568,6 +587,8 @@ const startCopy = async () => {
   copying.value = true;
   copyProgress.value = 0;
   statusMessage.value = '正在初始化拷贝...';
+  copyStartTime.value = Date.now();
+  estimatedTimeLeft.value = '';
 
   window.electron.logMessage('debug', '[App.vue] form.selectedDates before sending:', JSON.parse(JSON.stringify(form.selectedDates)));
 
@@ -704,6 +725,14 @@ const isRemovableDrive = (dir: string) => {
 };
 const shouldShowSelectDir = computed(() => !form.sdCardDir || !isRemovableDrive(form.sdCardDir));
 const shouldShowEject = computed(() => form.sdCardDir && isRemovableDrive(form.sdCardDir));
+
+function formatSeconds(sec: number) {
+  if (isNaN(sec) || sec < 0) return '';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m > 0) return `${m}分${s.toString().padStart(2, '0')}秒`;
+  return `${s}秒`;
+}
 
 </script>
 
@@ -1280,7 +1309,7 @@ html, body {
 /* 主操作卡片样式 - 固定定位 */
 .main-action-card {
   position: fixed;
-  bottom: 68px; /* 页脚高度48px + 20px间距 */
+  bottom: 68px;
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
@@ -1289,6 +1318,29 @@ html, body {
   height: 80px;
   box-sizing: border-box;
   z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.main-action-error {
+  color: #FF3B30;
+  font-size: 0.95em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 6px;
+  padding: 6px 16px;
+  box-shadow: 0 2px 8px rgba(255,59,48,0.08);
+  min-height: 28px;
+}
+
+.main-action-error .el-icon {
+  margin-right: 6px;
+  font-size: 1.1em;
 }
 
 .action-button-container {
