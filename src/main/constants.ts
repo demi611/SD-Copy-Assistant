@@ -5,7 +5,7 @@ export const IMAGE_EXTENSIONS = [
   '.arw', '.dng', '.raf', '.orf', '.pef', '.srw', '.x3f'
 ].map(ext => ext.toLowerCase())
 
-export const VIDEO_EXTENSIONS = ['.mp4', '.avi', '.mov'].map(ext => ext.toLowerCase())
+export const VIDEO_EXTENSIONS = ['.mp4', '.avi', '.mov', '.insv'].map(ext => ext.toLowerCase())
 
 export const RAW_EXTENSIONS = [
   '.raw', '.nef', '.cr2', '.CR3',
