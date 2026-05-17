@@ -6,7 +6,7 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 console.log('Preload script started.');
 
 // 从主进程类型文件导入类型定义
-import type { FileCopyRequest, FileCopyProgress } from '../main/types'
+import type { CopyOperationResult, FileCopyRequest, FileCopyProgress } from '../main/types'
 
 const electronApi = {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
@@ -18,8 +18,10 @@ const electronApi = {
   // 新增文件操作相关 IPC 接口
   scanMediaFileDates: (dirPath: string): Promise<string[]> =>
     ipcRenderer.invoke('scan-media-file-dates', dirPath),
-  startFileCopy: (request: FileCopyRequest): Promise<{ success: boolean; message: string; errors?: string[] }> =>
+  startFileCopy: (request: FileCopyRequest): Promise<CopyOperationResult> =>
     ipcRenderer.invoke('start-file-copy', request),
+  cancelFileCopy: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('cancel-file-copy'),
   // 用于接收拷贝进度的事件
   onFileCopyProgress: (callback: (progress: FileCopyProgress) => void) => {
     const handler = (_event: IpcRendererEvent, progress: FileCopyProgress) => callback(progress);
@@ -76,7 +78,8 @@ export interface IElectronAPI {
   openExternalLink: (url: string) => void
   logMessage: (level: string, message: string, ...args: any[]) => void
   scanMediaFileDates: (dirPath: string) => Promise<string[]>
-  startFileCopy: (request: FileCopyRequest) => Promise<{ success: boolean, message: string, errors?: string[] }>
+  startFileCopy: (request: FileCopyRequest) => Promise<CopyOperationResult>
+  cancelFileCopy: () => Promise<{ success: boolean }>
   onFileCopyProgress: (callback: (progress: FileCopyProgress) => void) => () => void
   getRemovableDrives: () => Promise<Array<{path: string, label: string}>>
   getDefaultDirs: () => Promise<{ pictures: string; videos: string }>
@@ -86,4 +89,4 @@ export interface IElectronAPI {
 }
 
 // 重新导出类型供其他模块使用
-export type { FileCopyRequest, FileCopyProgress } 
+export type { CopyOperationResult, FileCopyRequest, FileCopyProgress }

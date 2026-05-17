@@ -4,204 +4,307 @@
       <el-container>
         <el-main class="custom-main-content">
           <div class="content-wrapper">
-            <template v-if="!copying">
-              <el-form :model="form" label-position="top">
-                <!-- 图片目标目录 -->
-                <el-form-item :class="{ 'is-error': errors.imageTargetDir }">
-                  <template #label>
-                    <span class="custom-label">
-                      <el-icon><Picture /></el-icon>图片目标目录
-                    </span>
-                  </template>
-                  <div class="custom-input-group">
-                    <el-input v-model="form.imageTargetDir" placeholder="选择图片目标目录" class="custom-input" />
-                    <el-button @click="selectImageDir" class="custom-date-action-button">
-                      <el-icon><FolderOpened /></el-icon>选择目录
-                    </el-button>
-                  </div>
-                  <div v-if="errors.imageTargetDir" class="custom-error-text">
-                    <el-icon><WarningFilled /></el-icon>{{ errors.imageTargetDir }}
-                  </div>
-                </el-form-item>
+            <Transition name="view-fade" mode="out-in">
+              <div v-if="!copying" key="form" class="form-view">
+                <div v-if="errorSummary" class="summary-alert">
+                  <el-icon><WarningFilled /></el-icon>
+                  {{ errorSummary }}
+                </div>
 
-                <!-- 视频目标目录 -->
-                <el-form-item :class="{ 'is-error': errors.videoTargetDir }">
-                  <template #label>
-                    <span class="custom-label">
-                      <el-icon><Film /></el-icon>视频目标目录
-                    </span>
-                  </template>
-                  <div class="custom-input-group">
-                    <el-input v-model="form.videoTargetDir" placeholder="选择视频目标目录" class="custom-input" />
-                    <el-button @click="selectVideoDir" class="custom-date-action-button">
-                      <el-icon><FolderOpened /></el-icon>选择目录
-                    </el-button>
-                  </div>
-                  <div v-if="errors.videoTargetDir" class="custom-error-text">
-                    <el-icon><WarningFilled /></el-icon>{{ errors.videoTargetDir }}
-                  </div>
-                </el-form-item>
+                <el-form :model="form" label-position="top" class="settings-form">
+                  <section class="settings-section destination-section">
+                    <div class="section-heading">
+                      <div>
+                        <h3>保存位置</h3>
+                        <p>先选择要拷贝的类型，再设置对应保存目录</p>
+                      </div>
+                    </div>
 
-                <!-- 移动磁盘目录 -->
-                <el-form-item :class="{ 'is-error': !form.sdCardDir && sdDirTouched }">
-                  <template #label>
-                    <span class="custom-label">
-                       <el-icon><CreditCard /></el-icon>移动磁盘目录
-                    </span>
-                  </template>
-                  <div class="custom-input-group">
-                    <el-input 
-                      v-model="form.sdCardDir" 
-                      placeholder="请选择移动磁盘目录" 
-                      class="custom-input"
-                      @blur="sdDirTouched = true"
-                      clearable
-                      @clear="onSdCardDirClear"
-                    />
-                    <!-- 当没有移动磁盘或不是可移动驱动器时显示选择目录按钮 -->
-                    <el-button 
-                      v-if="shouldShowSelectDir"
-                      @click="selectSdCardDir" 
-                      class="custom-date-action-button">
-                      <el-icon><FolderOpened /></el-icon>选择目录
-                    </el-button>
-                    <!-- 只有自动检测到的移动磁盘路径才显示推出按钮 -->
-                    <el-button 
-                      v-if="shouldShowEject"
-                      @click="ejectSDCard" 
-                      :loading="ejectingSDCard"
-                      :disabled="copying || scanningDates"
-                      class="custom-eject-button"
-                      type="warning">
-                      <el-icon><RemoveFilled /></el-icon>
-                      推出磁盘
-                    </el-button>
-                  </div>
-                  <div v-if="!form.sdCardDir && sdDirTouched" class="custom-error-text">
-                    <el-icon><WarningFilled /></el-icon>错误：未选择移动磁盘目录
-                  </div>
-                  <div v-if="messages.sdCard" class="custom-message-text" :class="`is-${messages.sdCardType}`">
-                    <el-icon v-if="messages.sdCardType === 'success'"><SuccessFilled /></el-icon>
-                    <el-icon v-else-if="messages.sdCardType === 'error'"><WarningFilled /></el-icon>
-                    <el-icon v-else><InfoFilled /></el-icon>
-                    {{ messages.sdCard }}
-                  </div>
-                </el-form-item>
+                    <el-form-item>
+                      <div class="copy-options-row">
+                        <el-checkbox
+                          v-model="form.copyImages"
+                          class="custom-checkbox"
+                          @change="onCopyImagesChange">
+                          拷贝照片
+                        </el-checkbox>
+                        <el-checkbox
+                          v-model="form.copyVideos"
+                          class="custom-checkbox"
+                          @change="onCopyVideosChange">
+                          拷贝视频
+                        </el-checkbox>
+                      </div>
+                      <div v-if="!form.copyImages && !form.copyVideos" class="custom-error-text">
+                        <el-icon><WarningFilled /></el-icon>请至少选择"拷贝照片"或"拷贝视频"
+                      </div>
+                      <div v-else-if="errors.general" class="custom-error-text">
+                        <el-icon><WarningFilled /></el-icon>{{ errors.general }}
+                      </div>
+                      <div v-if="form.copyImages" class="nested-option-row">
+                        <span class="nested-option-guide">照片选项</span>
+                        <el-checkbox
+                          v-model="form.separateRawJpg"
+                          class="custom-checkbox nested-checkbox">
+                          RAW和JPG分开保存
+                        </el-checkbox>
+                      </div>
+                    </el-form-item>
 
-                <!-- 拍摄活动名称 -->
-                <el-form-item>
-                  <template #label>
-                    <span class="custom-label">
-                      <el-icon><PriceTag /></el-icon>拍摄活动名称
-                    </span>
-                  </template>
-                  <div class="custom-input-group">
-                    <el-input 
-                      v-model="form.activityName" 
-                      placeholder="请输入活动名称（不填默认为：媒体文件）" 
-                      class="custom-input"
-                      clearable
-                      @clear="onActivityNameClear"
-                    >
-                      <template #suffix>
-                        <el-icon><EditPen /></el-icon>
+                    <el-form-item v-if="form.copyImages" :class="{ 'is-error': errors.imageTargetDir }">
+                      <template #label>
+                        <span class="custom-label">
+                          <el-icon><Picture /></el-icon>图片目标目录
+                        </span>
                       </template>
-                    </el-input>
-                  </div>
-                </el-form-item>
+                      <div class="custom-input-group">
+                        <el-input
+                          v-model="form.imageTargetDir"
+                          placeholder="选择图片目标目录"
+                          class="custom-input path-input"
+                          :title="form.imageTargetDir"
+                          readonly
+                          spellcheck="false"
+                        />
+                        <el-button @click="selectImageDir" class="custom-date-action-button secondary-button">
+                          <el-icon><FolderOpened /></el-icon>选择目录
+                        </el-button>
+                      </div>
+                      <div v-if="errors.imageTargetDir" class="custom-error-text">
+                        <el-icon><WarningFilled /></el-icon>{{ errors.imageTargetDir }}
+                      </div>
+                    </el-form-item>
 
-                <!-- 选择拍摄日期 -->
-                <el-form-item :class="{ 'is-error': errors.selectedDates }">
-                   <template #label>
-                    <span class="custom-label">
-                      <el-icon><Calendar /></el-icon>选择拍摄日期
-                    </span>
-                  </template>
-                  <div class="custom-input-group">
-                    <el-select 
-                      v-model="form.selectedDates" 
-                      multiple
-                      placeholder="获取日期成功后，点击下拉选择拷贝日期" 
-                      class="custom-select" 
-                    >
-                      <el-option label="全部日期" value="all"></el-option>
-                      <el-option
-                        v-for="date in availableDates"
-                        :key="date"
-                        :label="date"
-                        :value="date">
-                      </el-option>
-                    </el-select>
-                    <el-button @click="scanDates" :loading="scanningDates" class="custom-date-action-button">
-                      <el-icon><RefreshRight /></el-icon>
-                      获取日期
-                    </el-button>
-                  </div>
-                  <div v-if="errors.selectedDates" class="custom-error-text">
-                    <el-icon><WarningFilled /></el-icon>{{ errors.selectedDates }}
-                  </div>
-                  <div v-if="messages.dates" class="custom-message-text" :class="`is-${messages.datesType}`">
-                    <el-icon v-if="messages.datesType === 'success'"><SuccessFilled /></el-icon>
-                    <el-icon v-else-if="messages.datesType === 'error'"><WarningFilled /></el-icon>
-                    <el-icon v-else><InfoFilled /></el-icon>
-                    {{ messages.dates }}
-                  </div>
-                </el-form-item>
+                    <el-form-item v-if="form.copyVideos" :class="{ 'is-error': errors.videoTargetDir }">
+                      <template #label>
+                        <span class="custom-label">
+                          <el-icon><Film /></el-icon>视频目标目录
+                        </span>
+                      </template>
+                      <div class="custom-input-group">
+                        <el-input
+                          v-model="form.videoTargetDir"
+                          placeholder="选择视频目标目录"
+                          class="custom-input path-input"
+                          :title="form.videoTargetDir"
+                          readonly
+                          spellcheck="false"
+                        />
+                        <el-button @click="selectVideoDir" class="custom-date-action-button secondary-button">
+                          <el-icon><FolderOpened /></el-icon>选择目录
+                        </el-button>
+                      </div>
+                      <div v-if="errors.videoTargetDir" class="custom-error-text">
+                        <el-icon><WarningFilled /></el-icon>{{ errors.videoTargetDir }}
+                      </div>
+                    </el-form-item>
 
-                <!-- RAW和JPG分开保存、拷贝照片、拷贝视频三个勾选项同一行 -->
-                <el-form-item>
-                  <div class="copy-options-row">
-                    <el-checkbox v-model="form.separateRawJpg" class="custom-checkbox">
-                      RAW和JPG分开保存
-                    </el-checkbox>
-                    <el-checkbox v-model="form.copyImages" class="custom-checkbox">
-                      拷贝照片
-                    </el-checkbox>
-                    <el-checkbox v-model="form.copyVideos" class="custom-checkbox">
-                      拷贝视频
-                    </el-checkbox>
-                  </div>
-                  <div v-if="!form.copyImages && !form.copyVideos" class="custom-error-text">
-                    <el-icon><WarningFilled /></el-icon>请至少选择"拷贝照片"或"拷贝视频"
-                  </div>
-                  <div v-else-if="errors.general" class="custom-error-text">
+                    <div v-if="!form.copyImages && !form.copyVideos" class="target-placeholder-row">
+                      选择照片或视频后，这里会显示对应的保存目录。
+                    </div>
+                    <div v-else-if="form.copyImages && !form.copyVideos" class="target-placeholder-row">
+                      如需同时拷贝视频，可勾选“拷贝视频”后设置视频目录。
+                    </div>
+                    <div v-else-if="!form.copyImages && form.copyVideos" class="target-placeholder-row">
+                      如需同时拷贝照片，可勾选“拷贝照片”后设置图片目录。
+                    </div>
+                  </section>
+
+                  <section class="settings-section">
+                    <div class="section-heading">
+                      <div>
+                        <h3>来源磁盘</h3>
+                        <p>插入移动磁盘后会自动识别，也可以手动选择</p>
+                      </div>
+                    </div>
+                    <el-form-item :class="{ 'is-error': !form.sdCardDir && sdDirTouched }">
+                      <template #label>
+                        <span class="custom-label">
+                          <el-icon><CreditCard /></el-icon>移动磁盘目录
+                        </span>
+                      </template>
+                      <div class="custom-input-group">
+                        <el-input
+                          v-model="form.sdCardDir"
+                          placeholder="请选择移动磁盘目录"
+                          class="custom-input path-input"
+                          :title="form.sdCardDir"
+                          readonly
+                          spellcheck="false"
+                          @blur="sdDirTouched = true"
+                          clearable
+                          @clear="onSdCardDirClear"
+                        />
+                        <el-button
+                          v-if="shouldShowSelectDir"
+                          @click="selectSdCardDir"
+                          class="custom-date-action-button secondary-button">
+                          <el-icon><FolderOpened /></el-icon>选择目录
+                        </el-button>
+                        <el-button
+                          v-if="shouldShowEject"
+                          @click="ejectSDCard"
+                          :loading="ejectingSDCard"
+                          :disabled="copying || scanningDates"
+                          class="custom-eject-button"
+                          type="warning">
+                          <el-icon><RemoveFilled /></el-icon>
+                          推出磁盘
+                        </el-button>
+                      </div>
+                      <div v-if="!form.sdCardDir && sdDirTouched" class="custom-error-text">
+                        <el-icon><WarningFilled /></el-icon>错误：未选择移动磁盘目录
+                      </div>
+                      <div v-else-if="!form.sdCardDir" class="source-empty-state">
+                        <el-icon><InfoFilled /></el-icon>
+                        未检测到移动磁盘，可插入后等待自动识别，或手动选择目录。
+                      </div>
+                      <div v-if="messages.sdCard" class="custom-message-text" :class="`is-${messages.sdCardType}`">
+                        <el-icon v-if="messages.sdCardType === 'success'"><SuccessFilled /></el-icon>
+                        <el-icon v-else-if="messages.sdCardType === 'error'"><WarningFilled /></el-icon>
+                        <el-icon v-else><InfoFilled /></el-icon>
+                        {{ messages.sdCard }}
+                      </div>
+                    </el-form-item>
+                  </section>
+
+                  <section class="settings-section">
+                    <div class="section-heading">
+                      <div>
+                        <h3>拷贝设置</h3>
+                        <p>填写拍摄主题并选择要拷贝的日期</p>
+                      </div>
+                    </div>
+                    <el-form-item>
+                      <template #label>
+                        <span class="custom-label optional-label">
+                          <el-icon><PriceTag /></el-icon>拍摄主题（可选）
+                        </span>
+                      </template>
+                      <div class="custom-input-group">
+                        <el-input
+                          v-model="form.activityName"
+                          placeholder="不填默认为：媒体文件"
+                          class="custom-input"
+                          spellcheck="false"
+                          clearable
+                          @clear="onActivityNameClear"
+                        >
+                          <template #suffix>
+                            <el-icon><EditPen /></el-icon>
+                          </template>
+                        </el-input>
+                      </div>
+                    </el-form-item>
+
+                    <el-form-item :class="{ 'is-error': errors.selectedDates }">
+                      <template #label>
+                        <span class="custom-label">
+                          <el-icon><Calendar /></el-icon>选择拍摄日期
+                        </span>
+                      </template>
+                      <div class="custom-input-group">
+                        <el-select
+                          v-model="form.selectedDates"
+                          multiple
+                          collapse-tags
+                          collapse-tags-tooltip
+                          :max-collapse-tags="3"
+                          :placeholder="dateSelectPlaceholder"
+                          class="custom-select"
+                          :disabled="!canSelectDates"
+                          @change="onDateSelectionChange"
+                        >
+                          <el-option label="全部日期" :value="ALL_DATES_VALUE"></el-option>
+                          <el-option
+                            v-for="date in availableDates"
+                            :key="date"
+                            :label="date"
+                            :value="date">
+                          </el-option>
+                        </el-select>
+                        <el-button
+                          @click="scanDates"
+                          :loading="scanningDates"
+                          :disabled="!form.sdCardDir || scanningDates"
+                          class="custom-date-action-button secondary-button date-scan-button">
+                          <el-icon><RefreshRight /></el-icon>
+                          {{ dateScanButtonText }}
+                        </el-button>
+                      </div>
+                      <div v-if="errors.selectedDates" class="custom-error-text">
+                        <el-icon><WarningFilled /></el-icon>{{ errors.selectedDates }}
+                      </div>
+                      <div v-if="messages.dates" class="custom-message-text" :class="`is-${messages.datesType}`">
+                        <el-icon v-if="messages.datesType === 'success'"><SuccessFilled /></el-icon>
+                        <el-icon v-else-if="messages.datesType === 'error'"><WarningFilled /></el-icon>
+                        <el-icon v-else><InfoFilled /></el-icon>
+                        {{ messages.dates }}
+                      </div>
+                    </el-form-item>
+                    <div v-if="copyResult" class="copy-result-card" :class="{ 'is-error': !copyResult.success }">
+                      <div class="copy-result-title">
+                        <el-icon v-if="copyResult.success"><SuccessFilled /></el-icon>
+                        <el-icon v-else><WarningFilled /></el-icon>
+                        {{ copyResult.message || (copyResult.success ? '拷贝完成' : '拷贝未完成') }}
+                      </div>
+                      <div v-if="copyResult.summary" class="copy-result-grid">
+                        <div>
+                          <span>总数</span>
+                          <strong>{{ copyResult.summary.total }}</strong>
+                        </div>
+                        <div>
+                          <span>成功</span>
+                          <strong>{{ copyResult.summary.copied }}</strong>
+                        </div>
+                        <div>
+                          <span>跳过</span>
+                          <strong>{{ copyResult.summary.skipped }}</strong>
+                        </div>
+                        <div>
+                          <span>失败</span>
+                          <strong>{{ copyResult.summary.failed }}</strong>
+                        </div>
+                        <div v-if="copyResult.summary.renamed > 0">
+                          <span>改名保存</span>
+                          <strong>{{ copyResult.summary.renamed }}</strong>
+                        </div>
+                      </div>
+                      <div v-if="copyResult.errors && copyResult.errors.length > 0" class="copy-result-errors">
+                        {{ copyResult.errors.slice(0, 2).join('；') }}{{ copyResult.errors.length > 2 ? '；...' : '' }}
+                      </div>
+                    </div>
+                  </section>
+                </el-form>
+
+                <div class="main-action-card">
+                  <div v-if="startCopyHint" class="main-action-hint">{{ startCopyHint }}</div>
+                  <div class="main-action-error" v-if="errors.general">
                     <el-icon><WarningFilled /></el-icon>{{ errors.general }}
                   </div>
-                  <div v-if="messages.copyResult" class="custom-message-text" :class="`is-${messages.copyResultType}`">
-                    <el-icon v-if="messages.copyResultType === 'success'"><SuccessFilled /></el-icon>
-                    <el-icon v-else-if="messages.copyResultType === 'error'"><WarningFilled /></el-icon>
-                    <el-icon v-else><InfoFilled /></el-icon>
-                    {{ messages.copyResult }}
+                  <div class="action-button-container">
+                    <el-button
+                      type="primary"
+                      @click="startCopy"
+                      :disabled="!canStartCopy"
+                      :title="startCopyHint"
+                      class="main-action-button"
+                      key="main-action-btn"
+                    >
+                      <el-icon><VideoPlay /></el-icon>
+                      开始拷贝
+                    </el-button>
                   </div>
-                </el-form-item>
-              </el-form>
-              <!-- 主操作卡片 -->
-              <div class="main-action-card">
-                <div class="main-action-error" v-if="errors.general">
-                  <el-icon><WarningFilled /></el-icon>{{ errors.general }}
-                </div>
-                <div class="action-button-container">
-                  <el-button
-                    type="primary"
-                    @click="startCopy"
-                    :loading="scanningDates"
-                    class="main-action-button"
-                    key="main-action-btn"
-                  >
-                    <el-icon><VideoPlay /></el-icon>
-                    开始拷贝
-                  </el-button>
                 </div>
               </div>
-            </template>
-            <template v-else>
-              <div class="copy-progress-fullscreen">
+              <div v-else key="progress" class="copy-progress-fullscreen">
                 <div class="main-progress-content">
                   <div class="custom-progress-icon-large">
-                    <el-icon class="custom-progress-icon"><Loading /></el-icon>
+                    <el-icon v-if="copyFinished" class="custom-progress-icon is-complete"><SuccessFilled /></el-icon>
+                    <el-icon v-else class="custom-progress-icon"><Loading /></el-icon>
                   </div>
                   <div class="custom-progress-title">
-                    正在拷贝文件
+                    {{ progressTitle }}
                   </div>
                   <div class="custom-progress-percentage">{{ copyProgress }}%</div>
                   <el-progress
@@ -218,10 +321,19 @@
                     <p class="custom-progress-stats" v-if="estimatedTimeLeft">
                       预计剩余时间：{{ estimatedTimeLeft }}
                     </p>
+                    <el-button
+                      v-if="!copyFinished"
+                      class="cancel-copy-button"
+                      :loading="cancelingCopy"
+                      :disabled="cancelingCopy"
+                      @click="cancelCopy"
+                    >
+                      取消拷贝
+                    </el-button>
                   </div>
                 </div>
               </div>
-            </template>
+            </Transition>
           </div>
         </el-main>
       </el-container>
@@ -261,7 +373,7 @@
             <ul>
                              <li><strong>目标目录：</strong>分别设置图片和视频的存储位置</li>
                <li><strong>移动磁盘选择：</strong>自动检测时显示"推出磁盘"，手动选择时显示"选择目录"</li>
-               <li><strong>活动名称：</strong>可选，用于文件夹命名（如"旅行照片"），默认为"媒体文件"</li>
+               <li><strong>拍摄主题：</strong>可选，用于文件夹命名（如"旅行照片"），默认为"媒体文件"</li>
                <li><strong>日期选择：</strong>支持多选特定日期或选择全部，日期按最新优先排序</li>
                <li><strong>RAW+JPG分离：</strong>勾选后会自动创建RAW和JPG子文件夹</li>
             </ul>
@@ -269,7 +381,7 @@
 
           <div class="help-section">
             <h4>📁 文件组织</h4>
-            <p>拷贝后的文件夹结构：<code>日期_活动名称</code></p>
+            <p>拷贝后的文件夹结构：<code>日期_拍摄主题</code></p>
             <ul>
               <li>示例：<code>20231225_家庭聚会</code></li>
               <li>启用RAW+JPG分离时：<code>20231225_家庭聚会/RAW/</code> 和 <code>20231225_家庭聚会/JPG/</code></li>
@@ -299,12 +411,12 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 // Updated icons based on usage
-import { 
+import {
   FolderOpened, Calendar, InfoFilled, SuccessFilled,
   Picture, Film, CreditCard, EditPen, RefreshRight, VideoPlay, WarningFilled, RemoveFilled, PriceTag, Loading
 } from '@element-plus/icons-vue'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
-import type { FileCopyRequest, FileCopyProgress } from '../../preload'
+import type { CopyOperationResult, FileCopyRequest, FileCopyProgress } from '../../preload'
 
 const sdDirTouched = ref(false); // 仅在失焦后显示移动磁盘错误
 
@@ -334,7 +446,7 @@ const form = reactive<Omit<FileCopyRequest, 'selectedDates'> & { selectedDates: 
   selectedDates: [],
   separateRawJpg: false,
   copyImages: true,
-  copyVideos: true
+  copyVideos: false
 })
 
 const copying = ref(false)
@@ -346,10 +458,213 @@ const availableDates = ref<string[]>([])
 const scanningDates = ref(false)
 const showHelpDialog = ref(false)
 const ejectingSDCard = ref(false)
+const cancelingCopy = ref(false)
 const copyStartTime = ref<number | null>(null)
 const estimatedTimeLeft = ref('')
+const copyResult = ref<CopyOperationResult | null>(null)
+const hasSubmitted = ref(false)
 
 const removableDrives = ref<Array<{ path: string, label: string }>>([])
+const ALL_DATES_VALUE = 'all'
+let scanDatesRequestId = 0
+let previousSelectedDates: string[] = []
+
+const dateScanButtonText = computed(() => {
+  if (scanningDates.value) {
+    return '扫描中'
+  }
+
+  if (availableDates.value.length > 0 || form.selectedDates.length > 0) {
+    return '重新扫描'
+  }
+
+  return '获取日期'
+})
+
+const canSelectDates = computed(() => form.sdCardDir && availableDates.value.length > 0)
+
+const dateSelectPlaceholder = computed(() => {
+  if (!form.sdCardDir) {
+    return '先选择移动磁盘目录'
+  }
+
+  if (availableDates.value.length === 0) {
+    return '获取日期后选择要拷贝的日期'
+  }
+
+  return '选择要拷贝的日期'
+})
+
+const validationIssues = computed(() => {
+  const issues: Array<{ field: keyof typeof errors | 'sdCardDir' | 'copyTypes'; message: string }> = []
+
+  if (!form.copyImages && !form.copyVideos) {
+    issues.push({ field: 'copyTypes', message: '请至少选择照片或视频' })
+  }
+
+  if (form.copyImages && !form.imageTargetDir) {
+    issues.push({ field: 'imageTargetDir', message: '请选择图片存储目录' })
+  }
+
+  if (form.copyVideos && !form.videoTargetDir) {
+    issues.push({ field: 'videoTargetDir', message: '请选择视频存储目录' })
+  }
+
+  if (!form.sdCardDir) {
+    issues.push({ field: 'sdCardDir', message: '请选择移动磁盘目录' })
+  }
+
+  if (form.selectedDates.length === 0) {
+    issues.push({ field: 'selectedDates', message: '请至少选择一个日期或"全部日期"' })
+  }
+
+  return issues
+})
+
+const startCopyHint = computed(() => {
+  const firstIssue = validationIssues.value[0]
+  if (!firstIssue) {
+    return ''
+  }
+
+  if (firstIssue.field === 'imageTargetDir' || firstIssue.field === 'videoTargetDir') {
+    return '请先选择保存目录'
+  }
+
+  if (firstIssue.field === 'selectedDates') {
+    return '请先获取并选择拍摄日期'
+  }
+
+  return firstIssue.message
+})
+
+const canStartCopy = computed(() => !scanningDates.value && !startCopyHint.value)
+
+const copyFinished = computed(() => copyProgress.value >= 100)
+
+const progressTitle = computed(() => {
+  if (copyFinished.value) {
+    return errors.general ? '拷贝完成，但有问题' : '拷贝完成'
+  }
+
+  if (cancelingCopy.value) {
+    return '正在取消拷贝'
+  }
+
+  return '正在拷贝文件'
+})
+
+const errorSummary = computed(() => {
+  if (!hasSubmitted.value) {
+    return ''
+  }
+
+  const errorList = [
+    errors.imageTargetDir,
+    errors.videoTargetDir,
+    !form.sdCardDir && sdDirTouched.value ? '请选择移动磁盘目录' : '',
+    errors.selectedDates,
+    errors.general
+  ].filter(Boolean)
+
+  if (errorList.length <= 1) {
+    return ''
+  }
+
+  return `请先处理 ${errorList.length} 项问题：${errorList[0]}`
+})
+
+const applyValidationErrors = () => {
+  clearErrors()
+
+  for (const issue of validationIssues.value) {
+    if (issue.field === 'imageTargetDir') {
+      errors.imageTargetDir = issue.message
+    } else if (issue.field === 'videoTargetDir') {
+      errors.videoTargetDir = issue.message
+    } else if (issue.field === 'selectedDates') {
+      errors.selectedDates = issue.message
+    } else if (issue.field === 'copyTypes') {
+      errors.general = issue.message
+    }
+  }
+
+  return validationIssues.value.length > 0
+}
+
+const onCopyImagesChange = () => {
+  errors.general = ''
+  errors.imageTargetDir = ''
+
+  if (!form.copyImages) {
+    form.separateRawJpg = false
+  }
+}
+
+const onCopyVideosChange = () => {
+  errors.general = ''
+  errors.videoTargetDir = ''
+}
+
+const resetSelectedDates = () => {
+  form.selectedDates = []
+  previousSelectedDates = []
+}
+
+const setSelectedDates = (dates: string[]) => {
+  form.selectedDates = dates
+  previousSelectedDates = [...dates]
+}
+
+const getAllDateSelection = () => [ALL_DATES_VALUE, ...availableDates.value]
+
+const onDateSelectionChange = (selection: string[]) => {
+  const hadAll = previousSelectedDates.includes(ALL_DATES_VALUE)
+  const hasAll = selection.includes(ALL_DATES_VALUE)
+  const selectedDatesOnly = selection.filter((date) => date !== ALL_DATES_VALUE)
+  const allRealDatesSelected = availableDates.value.length > 0
+    && availableDates.value.every((date) => selectedDatesOnly.includes(date))
+
+  errors.selectedDates = ''
+
+  if (hasAll && !hadAll) {
+    setSelectedDates(getAllDateSelection())
+    return
+  }
+
+  if (!hasAll && hadAll) {
+    resetSelectedDates()
+    return
+  }
+
+  if (hasAll && !allRealDatesSelected) {
+    setSelectedDates(selectedDatesOnly)
+    return
+  }
+
+  if (!hasAll && allRealDatesSelected) {
+    setSelectedDates(getAllDateSelection())
+    return
+  }
+
+  setSelectedDates(selection)
+}
+
+const withTimeout = async <T,>(promise: Promise<T>, ms: number, message: string): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), ms)
+  })
+
+  try {
+    return await Promise.race([promise, timeoutPromise])
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+    }
+  }
+}
 
 let unsubscribeFileCopyProgress: (() => void) | null = null;
 let unsubscribeSDCardInserted: (() => void) | null = null;
@@ -368,15 +683,13 @@ const autoDetectSDCard = async () => {
     if (drives && drives.length > 0) {
       form.sdCardDir = drives[0].path
       sdDirTouched.value = false
-      messages.sdCard = `检测到移动磁盘：${drives[0].label} (${drives[0].path})`;
+      messages.sdCard = `检测到移动磁盘：${drives[0].label}。请点击“获取日期”。`;
       messages.sdCardType = 'success'
       setTimeout(() => {
         if (messages.sdCard && messages.sdCard.includes('检测到移动磁盘')) {
           messages.sdCard = ''
         }
       }, 5000)
-      // 自动检测到移动磁盘后自动获取日期
-      scanDates();
     }
   } catch (error: any) {
     // 自动检测移动磁盘失败，静默处理
@@ -388,7 +701,7 @@ onMounted(async () => {
     errors.general = '应用程序初始化失败：无法访问 Electron API';
     return;
   }
-  
+
   // 设置默认目录
   try {
     const defaultDirs = await window.electron.getDefaultDirs();
@@ -397,7 +710,7 @@ onMounted(async () => {
   } catch (error) {
     // 获取默认目录失败，使用空字符串
   }
-  
+
   const progressHandler = (progress: FileCopyProgress) => {
     if (progress) {
       copyProgress.value = progress.percentage || 0;
@@ -419,23 +732,25 @@ onMounted(async () => {
       if (progress.error) {
         errors.general = progress.error;
       }
-      
+
       if (progress.percentage === 100) {
         setTimeout(() => {
           copying.value = false;
-        }, 1000);
+        }, 500);
       }
     }
   };
 
   unsubscribeFileCopyProgress = window.electron.onFileCopyProgress(progressHandler);
-  
+
   // 设置移动磁盘事件监听
   unsubscribeSDCardInserted = window.electron.onSDCardInserted((drive) => {
     form.sdCardDir = drive.path;
     sdDirTouched.value = false;
+    availableDates.value = [];
+    resetSelectedDates()
     refreshRemovableDrives()
-    messages.sdCard = `检测到移动磁盘插入：${drive.label} (${drive.path})`;
+    messages.sdCard = `检测到移动磁盘插入：${drive.label}。请点击“获取日期”。`;
     messages.sdCardType = 'success'
     setTimeout(() => {
       if (messages.sdCard && messages.sdCard.includes('检测到移动磁盘插入')) {
@@ -458,7 +773,7 @@ onMounted(async () => {
       }, 5000)
     }
   });
-  
+
   // 自动检测移动磁盘（初始检测）
   autoDetectSDCard();
 });
@@ -486,46 +801,66 @@ const selectDirectory = async (): Promise<string | null> => {
   }
 }
 
-const selectImageDir = async () => { 
-  const dir = await selectDirectory(); 
+const selectImageDir = async () => {
+  const dir = await selectDirectory();
   if (dir) {
+    hasSubmitted.value = false
     form.imageTargetDir = dir;
     errors.imageTargetDir = ''; // 清除错误
   }
 }
-const selectVideoDir = async () => { 
-  const dir = await selectDirectory(); 
+const selectVideoDir = async () => {
+  const dir = await selectDirectory();
   if (dir) {
-    form.videoTargetDir = dir; 
+    hasSubmitted.value = false
+    form.videoTargetDir = dir;
     errors.videoTargetDir = ''; // 清除错误
   }
 }
-const selectSdCardDir = async () => { 
-  const dir = await selectDirectory(); 
+const selectSdCardDir = async () => {
+  const dir = await selectDirectory();
   if (dir) {
-    form.sdCardDir = dir; 
-    messages.sdCard = '';
+    hasSubmitted.value = false
+    form.sdCardDir = dir;
+    availableDates.value = [];
+    resetSelectedDates()
+    messages.sdCard = '已选择移动磁盘目录，请点击“获取日期”。';
+    messages.sdCardType = 'success'
     await refreshRemovableDrives()
   }
   sdDirTouched.value = true;
 }
 
 const scanDates = async () => {
+  if (scanningDates.value) {
+    return
+  }
+
   // 清除之前的错误信息
   clearErrors()
   clearMessages()
   sdDirTouched.value = true; // 如果尝试扫描但未选择，也标记为已触碰
-  
+
   if (!form.sdCardDir) {
     // 移动磁盘错误已经通过现有的逻辑处理
     return;
   }
-  
+
+  const currentRequestId = ++scanDatesRequestId
   scanningDates.value = true;
   statusMessage.value = '正在扫描文件日期...';
   try {
     window.electron.logMessage('info', 'Requesting media file dates for:', form.sdCardDir);
-    const dates = await window.electron.scanMediaFileDates(form.sdCardDir);
+    const dates = await withTimeout(
+      window.electron.scanMediaFileDates(form.sdCardDir),
+      120000,
+      '扫描超过 2 分钟，请确认磁盘可正常读取，或手动选择相机照片目录后重试。'
+    );
+
+    if (currentRequestId !== scanDatesRequestId) {
+      return
+    }
+
     if (dates.length === 0) {
       messages.dates = '在选定目录中未找到符合条件的图片或视频文件';
       messages.datesType = 'error'
@@ -534,55 +869,37 @@ const scanDates = async () => {
       availableDates.value = dates;
       messages.dates = `扫描完成！共找到 ${dates.length} 个不同日期。请在下拉框中选择。`
       messages.datesType = 'success'
-      // 3秒后清除成功消息
+      // 成功提示短暂停留，避免长期挤占表单空间。
       setTimeout(() => {
         if (messages.dates.includes('扫描完成')) {
           messages.dates = ''
         }
-      }, 3000)
+      }, 5000)
     }
-    form.selectedDates = [];
+    resetSelectedDates()
   } catch (error: any) {
+    if (currentRequestId !== scanDatesRequestId) {
+      return
+    }
+
     window.electron.logMessage('error', '扫描日期失败:', form.sdCardDir, error.message);
-    messages.dates = '扫描日期失败: ' + error.message;
+    messages.dates = error.message || '扫描日期失败，请确认磁盘可正常读取。';
     messages.datesType = 'error'
   } finally {
-    scanningDates.value = false;
-    statusMessage.value = '';
+    if (currentRequestId === scanDatesRequestId) {
+      scanningDates.value = false;
+      statusMessage.value = '';
+    }
   }
 }
 
 const startCopy = async () => {
   // 清除之前的错误信息
-  clearErrors()
   clearMessages()
+  hasSubmitted.value = true
   sdDirTouched.value = true; // 尝试拷贝时标记为已触碰
-  
-  // 验证表单并设置错误信息
-  let hasErrors = false
-  
-  if (!form.imageTargetDir) { 
-    errors.imageTargetDir = '请选择图片存储目录'
-    hasErrors = true
-  }
-  if (!form.videoTargetDir) { 
-    errors.videoTargetDir = '请选择视频存储目录'
-    hasErrors = true
-  }
-  if (!form.sdCardDir) { 
-    // 移动磁盘错误已经通过现有的逻辑处理
-    hasErrors = true
-  }
-  if (form.selectedDates.length === 0) { 
-    errors.selectedDates = '请至少选择一个日期或"全部日期"'
-    hasErrors = true
-  }
-  if (!form.copyImages && !form.copyVideos) {
-    errors.general = '请至少选择"拷贝照片"或"拷贝视频"';
-    hasErrors = true;
-  }
-  
-  if (hasErrors) return;
+
+  if (applyValidationErrors()) return;
 
   copying.value = true;
   copyProgress.value = 0;
@@ -592,7 +909,7 @@ const startCopy = async () => {
 
   window.electron.logMessage('debug', '[App.vue] form.selectedDates before sending:', JSON.parse(JSON.stringify(form.selectedDates)));
 
-  // 如果活动名称为空，使用默认名称
+  // 如果拍摄主题为空，使用默认名称
   const activityName = form.activityName.trim() || '媒体文件';
 
   const request: FileCopyRequest = {
@@ -611,23 +928,12 @@ const startCopy = async () => {
     const result = await window.electron.startFileCopy(request);
     window.electron.logMessage('info', 'File copy process finished. Result:', result);
 
-    if (result.success) {
-      messages.copyResult = result.message || '文件拷贝成功完成！';
-      messages.copyResultType = 'success';
-      // 10秒后清除成功消息
-      setTimeout(() => {
-        if (messages.copyResult && (messages.copyResult.includes('成功') || messages.copyResult.includes('完成'))) {
-          messages.copyResult = ''
-        }
-      }, 10000)
-    } else {
-      messages.copyResult = result.message || '文件拷贝过程中发生错误。';
-      messages.copyResultType = 'error';
-      if (result.errors && result.errors.length > 0) {
-        // 将详细错误也显示在界面上
-        messages.copyResult += `\n拷贝过程中出现 ${result.errors.length} 个文件错误：\n${result.errors.slice(0, 3).join('\n')}${result.errors.length > 3 ? '\n...' : ''}`;
-        window.electron.logMessage('error', '文件拷贝完成但有错误:', result.errors);
-      }
+    copyResult.value = result;
+    messages.copyResult = formatCopyResult(result);
+    messages.copyResultType = result.success ? 'success' : 'error';
+
+    if (result.errors && result.errors.length > 0) {
+      window.electron.logMessage('error', '文件拷贝完成但有错误:', result.errors);
     }
   } catch (error: any) {
     window.electron.logMessage('error', '调用 startFileCopy 时发生严重错误:', error.message);
@@ -638,7 +944,39 @@ const startCopy = async () => {
      if (copyProgress.value !== 100) {
         copying.value = false;
      }
+     cancelingCopy.value = false;
   }
+}
+
+const cancelCopy = async () => {
+  cancelingCopy.value = true;
+  statusMessage.value = '正在取消拷贝，当前文件处理完后会停止...';
+
+  try {
+    await window.electron.cancelFileCopy();
+  } catch (error: any) {
+    cancelingCopy.value = false;
+    statusMessage.value = '取消拷贝失败：' + error.message;
+  }
+}
+
+const formatCopyResult = (result: CopyOperationResult): string => {
+  const summary = result.summary;
+  const lines = [result.message || (result.success ? '拷贝完成' : '拷贝过程中发生错误')];
+
+  if (summary) {
+    lines.push(`总数：${summary.total} 个`);
+    lines.push(`成功：${summary.copied} 个`);
+    if (summary.renamed > 0) lines.push(`同名改名保存：${summary.renamed} 个`);
+    if (summary.skipped > 0) lines.push(`跳过重复：${summary.skipped} 个`);
+    if (summary.failed > 0) lines.push(`失败：${summary.failed} 个`);
+  }
+
+  if (result.errors && result.errors.length > 0) {
+    lines.push(`错误示例：${result.errors.slice(0, 3).join('；')}${result.errors.length > 3 ? '；...' : ''}`);
+  }
+
+  return lines.join('\n');
 }
 
 const openGithub = () => {
@@ -650,19 +988,19 @@ const ejectSDCard = async () => {
   // 清除之前的错误信息
   clearErrors()
   clearMessages()
-  
+
   if (!form.sdCardDir) {
     messages.sdCard = '没有选择移动磁盘';
     messages.sdCardType = 'error'
     return;
   }
-  
+
   ejectingSDCard.value = true;
-  
+
   try {
     window.electron.logMessage('info', '尝试推出移动磁盘:', form.sdCardDir);
     const result = await window.electron.ejectSDCard(form.sdCardDir);
-    
+
     if (result.success) {
       messages.sdCard = result.message;
       messages.sdCardType = 'success'
@@ -689,9 +1027,12 @@ const ejectSDCard = async () => {
 
 // 清空移动磁盘相关数据的统一函数
 const clearSDCardData = () => {
+  scanDatesRequestId++
+  scanningDates.value = false
+  hasSubmitted.value = false
   form.sdCardDir = '';
   availableDates.value = [];
-  form.selectedDates = [];
+  resetSelectedDates()
   sdDirTouched.value = false; // 重置触碰状态，避免显示错误提示
 }
 
@@ -713,9 +1054,10 @@ const clearMessages = () => {
   messages.sdCard = ''
   messages.dates = ''
   messages.copyResult = ''
+  copyResult.value = null
 }
 
-// 处理活动名称输入框清空事件
+// 处理拍摄主题输入框清空事件
 const onActivityNameClear = () => {
   form.activityName = ''
 }
@@ -737,159 +1079,503 @@ function formatSeconds(sec: number) {
 </script>
 
 <style>
-/* HTML、Body 和 Vue 应用挂载点的全局重置 */
+/* 基础重置 */
 html, body, #app {
-  height: 100vh; 
-  width: 100vw;  
+  height: 100vh;
+  width: 100vw;
   margin: 0;
   padding: 0;
-  overflow: hidden; 
+  overflow: hidden;
   box-sizing: border-box;
-  background-color: #EFEFF4; /* 确保全局背景颜色一致 */
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+}
+
+body {
+  background: #eef2f7;
 }
 
 #app .el-container {
-  height: calc(100vh - 40px); /* 100vh 减去页脚高度 */
+  flex: 1;
+  min-height: 0;
+  height: auto;
 }
 
-/* 移动磁盘检测消息样式 */
-.sd-card-message {
-  padding: 4px 0;
+.el-main {
+  overflow: auto;
 }
 
-.sd-card-title {
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.sd-card-details {
-  display: flex;
-  flex-direction: column;
-  font-size: 12px;
-  color: #606266;
-  margin-left: 28px;
-}
-
-.sd-card-label {
-  font-weight: 500;
-  margin-bottom: 2px;
-}
-
-.sd-card-path {
-  color: #909399;
-  font-family: monospace;
-}
-
-/* 通用应用样式 */
-.container.custom-style-container {
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
-  height: 100%; 
-  width: 100%; 
-  box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  overflow: hidden; 
-  background-color: #EFEFF4; /* 整体窗口背景颜色，与html/body保持一致 */
-  padding: 20px; /* 统一的 20px 灰色边框 */
-}
-
+/* 布局容器 */
 .custom-main-content {
-  width: 100%;
-  max-width: 700px;
-  margin: 0;
-  background: #F9F9F9;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  overflow-y: visible;
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-  box-sizing: border-box;
-  height: 100%;
+  max-width: 760px;
+  background: #f7f9fc;
+  box-shadow: none;
+  padding: 0 !important;
+  min-height: 0;
 }
 
 .content-wrapper {
-  padding-bottom: 72px;
-  padding-top: 24px;
+  background: #f7f9fc;
+  padding: 18px 24px 0;
+  min-height: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
+}
+
+.form-view {
+  width: 100%;
   flex: 1;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
-.form-header {
-  padding: 24px 24px 12px 24px; 
-  border-bottom: 1px solid #EAEAEA;
-  margin-bottom: 18px;
+/* 表单 */
+.settings-form {
+  padding-bottom: 0;
+  flex: 0 0 auto;
 }
 
-.form-title {
-  font-size: 1.5em; 
-  font-weight: 600;
-  color: #1d1d1f; 
-  margin: 0 0 4px 0;
+.settings-section {
+  padding: 10px 0 8px;
+  border-top: 1px solid #e4e9f2;
 }
 
-.form-description {
-  font-size: 0.9em;
-  color: #6e6e73; 
+.settings-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.destination-section {
+  min-height: 180px;
+  box-sizing: border-box;
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin: 0 0 6px;
+  padding: 0 6px;
+}
+
+.section-heading > div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.section-heading h3 {
   margin: 0;
+  color: #162033;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.section-heading p {
+  margin: 0;
+  color: #788397;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.summary-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border: 1px solid #ffd7a6;
+  border-radius: 8px;
+  background: #fff8ed;
+  color: #9a5a00;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.summary-alert .el-icon {
+  flex-shrink: 0;
 }
 
 .el-form-item {
-  margin-bottom: 20px; 
-  padding: 0 24px; 
-  transition: all 0.2s ease;
+  margin-bottom: 6px;
+  padding: 0 6px;
 }
 
-.el-form-item:hover {
-  transform: translateY(-1px);
-}
-
-/* 有通知信息的表单项减少底部间距 */
 .el-form-item:has(.custom-error-text),
 .el-form-item:has(.custom-message-text) {
-  margin-bottom: 16px;
+  margin-bottom: 6px;
 }
 
+.el-form-item__label {
+  line-height: 18px !important;
+  margin-bottom: 4px !important;
+  padding: 0 !important;
+}
+
+/* 标签和输入 */
 .custom-label {
+  color: #2f5fb8 !important;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.custom-label .el-icon {
+  color: #4c7edb;
+  font-size: 1em;
+}
+
+.optional-label {
+  opacity: 0.82;
+}
+
+.custom-input-group {
   display: flex;
   align-items: center;
-  font-size: 1em;
-  color: #333;
-  font-weight: 500;
-}
-.custom-label .el-icon {
-  margin-right: 8px;
-  color: #0071E3; 
-  font-size: 1.1em;
+  gap: 10px;
+  width: 100%;
 }
 
-/* 恢复Element Plus原生输入框风格，仅微调圆角和边框色 */
-.el-input__wrapper {
+.custom-input,
+.custom-select {
+  color: #2d3748 !important;
+  flex: 1;
+  min-width: 0;
+}
+
+.custom-input .el-input__wrapper,
+.custom-select .el-select__wrapper {
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
   border-radius: 8px !important;
-  border: 1.2px solid #e0e7ef !important;
-  box-shadow: none !important;
   background: #fff !important;
+  border: 1px solid #dbe3ee !important;
+  box-shadow: none !important;
+  overflow: hidden;
   padding: 0 12px !important;
 }
-.el-input__wrapper.is-focus {
-  border: 1.2px solid #60a5fa !important;
+
+.custom-input .el-input__inner,
+.custom-select .el-select__placeholder,
+.custom-select .el-select__selected-item {
+  height: 30px !important;
+  line-height: 30px !important;
+  font-size: 12px !important;
+}
+
+.custom-input .el-input__suffix,
+.custom-select .el-select__suffix {
+  height: 30px !important;
+  line-height: 30px !important;
+}
+
+.custom-select .el-select__selection {
+  flex-wrap: nowrap !important;
+  overflow: hidden;
+}
+
+.custom-select .el-tag {
+  max-width: 96px;
+}
+
+.custom-select .el-tag__content {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.path-input .el-input__inner {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-input .el-input__wrapper.is-focus,
+.custom-select .el-select__wrapper.is-focused {
+  border-color: #3478f6 !important;
+}
+
+.el-form-item.is-error .custom-input .el-input__wrapper,
+.el-form-item.is-error .custom-input .el-input__wrapper.is-focus,
+.el-form-item.is-error .custom-select .el-select__wrapper,
+.el-form-item.is-error .custom-select .el-select__wrapper.is-focused {
+  border-color: #ff3b30 !important;
+}
+
+.source-empty-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  color: #8490a3;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+/* 按钮 */
+.custom-date-action-button,
+.secondary-button {
+  min-width: 104px;
+  width: 104px;
+  height: 32px !important;
+  border-radius: 8px !important;
   background: #fff !important;
+  border: 1px solid #d6deea !important;
+  color: #2f5fb8 !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  transform: none !important;
+}
+
+.custom-date-action-button:hover,
+.secondary-button:hover {
+  background: #f3f7ff !important;
+  border-color: #9db7e8 !important;
+}
+
+.custom-date-action-button.is-disabled,
+.custom-date-action-button.is-disabled:hover,
+.secondary-button.is-disabled,
+.secondary-button.is-disabled:hover {
+  color: #a8b2c3 !important;
+  background: #f6f8fb !important;
+  border-color: #e1e7f0 !important;
+}
+
+.date-scan-button {
+  width: 112px;
+  min-width: 112px;
+}
+
+.custom-eject-button {
+  min-width: 104px;
+  width: 104px;
+  height: 32px !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  border: 1px solid #d6deea !important;
+  color: #b45309 !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.custom-eject-button:hover {
+  background: #fff7ed !important;
+  border-color: #fdba74 !important;
+}
+
+/* 复选框 */
+.copy-options-row {
+  display: flex;
+  justify-content: flex-start;
+  gap: 32px;
+  flex-wrap: nowrap;
+}
+
+.copy-options-row .el-checkbox {
+  margin-right: 0 !important;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.copy-options-row .el-checkbox__label {
+  color: #2f5fb8;
+  font-size: 12px !important;
+}
+
+.custom-checkbox {
+  color: #2f5fb8 !important;
+}
+
+.custom-checkbox .el-checkbox__input.is-checked .el-checkbox__inner {
+  background-color: #1769e0;
+  border-color: #1769e0;
+}
+
+.nested-option-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  margin-left: 26px;
+  padding-left: 12px;
+  border-left: 2px solid #d7e3f5;
+}
+
+.nested-option-guide {
+  color: #7b8798;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.nested-checkbox .el-checkbox__label {
+  color: #4c6f9f !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.nested-checkbox .el-checkbox__inner {
+  width: 14px;
+  height: 14px;
+}
+
+.target-placeholder-row {
+  margin: 0 6px 0;
+  padding: 7px 12px;
+  border: 1px dashed #d7e3f1;
+  border-radius: 8px;
+  color: #7c8798;
+  font-size: 11px;
+  line-height: 1.35;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+/* 主操作区 */
+.main-action-card {
+  position: relative;
+  margin: 12px 0 14px;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border-top: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+}
+
+.action-button-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-action-card .main-action-button {
+  min-width: 170px;
+  height: 35px !important;
+  border-radius: 10px !important;
+  background: #1769e0 !important;
+  border-color: #1769e0 !important;
+  color: #fff !important;
+  box-shadow: 0 8px 18px rgba(23, 105, 224, 0.18) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.main-action-card .main-action-button:hover {
+  background: #0f5dca !important;
+}
+
+.main-action-card .main-action-button.is-disabled,
+.main-action-card .main-action-button.is-disabled:hover {
+  background: #d9e2f1 !important;
+  border-color: #d9e2f1 !important;
+  color: #8796ad !important;
   box-shadow: none !important;
 }
 
-/* 错误状态 */
-.el-form-item.is-error .custom-input .el-input__wrapper {
-  border-color: #FF3B30 !important; 
+.main-action-hint {
+  margin-bottom: 1px;
+  color: #7b8798;
+  font-size: 11px;
+  line-height: 1.2;
 }
 
+.main-action-error {
+  position: absolute;
+  top: -46px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #FF3B30;
+  font-size: 0.95em;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 6px;
+  padding: 6px 16px;
+  box-shadow: 0 2px 8px rgba(255,59,48,0.08);
+  border: 1px solid #ffd4d4;
+  white-space: nowrap;
+}
+
+.copy-result-card {
+  margin: 4px 6px 0;
+  padding: 8px 12px;
+  border: 1px solid #cfe7d2;
+  border-radius: 9px;
+  background: #f4fbf5;
+  color: #246b2f;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 14px;
+  min-height: 42px;
+  box-sizing: border-box;
+}
+
+.copy-result-card.is-error {
+  border-color: #ffd4d4;
+  background: #fff7f7;
+  color: #a92f2f;
+}
+
+.copy-result-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.3;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-result-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 0;
+  justify-content: flex-end;
+}
+
+.copy-result-grid div {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.copy-result-grid span {
+  color: #6f7c8f;
+  font-size: 11px;
+}
+
+.copy-result-grid strong {
+  color: inherit;
+  font-size: 13px;
+}
+
+.copy-result-errors {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+/* 错误和消息文本 */
 .custom-error-text {
-  color: #FF3B30; 
+  color: #FF3B30;
   font-size: 0.75em;
   margin-top: 2px;
   margin-bottom: 0;
@@ -903,7 +1589,6 @@ html, body, #app {
   font-size: 0.9em;
 }
 
-/* 消息文本样式 - 与错误文本保持一致的字体大小 */
 .custom-message-text {
   font-size: 0.75em;
   margin-top: 2px;
@@ -911,6 +1596,7 @@ html, body, #app {
   display: flex;
   align-items: center;
   line-height: 1.2;
+  white-space: pre-line;
 }
 
 .custom-message-text .el-icon {
@@ -930,226 +1616,21 @@ html, body, #app {
   color: #409EFF;
 }
 
-/* 日期部分样式已移动到 custom-input-group */
-
-/* 针对"获取日期"按钮的新样式，使其与"选择目录"按钮风格一致 */
-.custom-date-action-button {
-  border-radius: 6px !important;
-  background-color: #f5f5f7 !important;
-  border-color: #e0e0e0 !important; /* 更明显的边框 */
-  color: #333 !important;
-  padding: 8px 15px !important; /* 标准 Element Plus 小按钮的内边距 */
-  font-size: 0.9em !important; /* 调整字体大小 */
-  font-weight: 500;
-  height: auto !important;
-  flex-shrink: 0; /* 防止按钮收缩 */
-  transition: all 0.15s ease !important;
-  min-width: 100px;
-}
-
-.custom-date-action-button:hover,
-.custom-date-action-button:focus {
-  background-color: #e8e8ed !important; /* 匹配选择目录按钮的hover色 */
-  border-color: #c0c4cc !important; /* 悬停时边框颜色更深 */
-  transform: translateY(-0.5px) !important;
-}
-
-/* 推出移动磁盘按钮样式 */
-.custom-eject-button {
-  border-radius: 6px !important;
-  padding: 8px 15px !important;
-  font-size: 0.9em !important;
-  font-weight: 500;
-  height: auto !important;
-  flex-shrink: 0;
-  background-color: #f56c6c !important;
-  border-color: #f56c6c !important;
-  color: white !important;
-  transition: all 0.15s ease !important;
-  min-width: 100px;
-}
-
-.custom-eject-button:hover:not(:disabled),
-.custom-eject-button:focus:not(:disabled) {
-  background-color: #f23030 !important;
-  border-color: #f23030 !important;
-}
-
-.custom-eject-button:disabled {
-  background-color: #c0c4cc !important;
-  border-color: #c0c4cc !important;
-  color: #a8abb2 !important;
-  cursor: not-allowed !important;
-}
-
-.custom-checkbox .el-checkbox__label .custom-label { 
-  font-weight: normal; 
-  font-size: 0.9em; 
-}
-.custom-checkbox .el-checkbox__input.is-checked .el-checkbox__inner {
-  background-color: #0071E3;
-  border-color: #0071E3;
-}
-
-.action-buttons, .custom-action-buttons-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 48px;
-  margin-bottom: 48px;
-  padding: 0;
-  gap: 0;
-}
-
-.custom-action-button {
-  border-radius: 6px !important;
-  padding: 10px 20px !important;
-  font-size: 0.95em !important;
-  font-weight: 500;
-  height: auto !important; 
-}
-.custom-action-button .el-icon {
-  font-size: 1.1em;
-}
-
-.custom-primary-button {
-  background-color: #0071E3 !important;
-  border-color: #0071E3 !important;
-  color: white !important;
-  transition: all 0.2s ease !important;
-}
-.custom-primary-button:hover, .custom-primary-button:focus {
-  background-color: #005bb5 !important;
-  border-color: #005bb5 !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3) !important;
-}
-.custom-primary-button:active {
-  transform: translateY(0) !important;
-  box-shadow: 0 2px 6px rgba(0, 113, 227, 0.2) !important;
-}
-
-.custom-secondary-button {
-  background-color: #e9e9eb !important;
-  border-color: #e0e0e0 !important; /* 添加边框 */
-  color: #1d1d1f !important;
-}
-.custom-secondary-button:hover, .custom-secondary-button:focus {
-  background-color: #dcdce0 !important;
-  border-color: #c0c4cc !important; /* 悬停时边框颜色更深 */
-}
-
-/* 自定义进度容器样式 */
-.custom-progress-container {
-  width: 100%;
-  padding: 20px 24px;
-  background: linear-gradient(-225deg,#FFFEFF 0%, #D7FFFE 100%);
-  border-radius: 12px;
-  border: 1px solid #e1e8ed;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  margin-top: 0px;
-}
-
-.custom-progress-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.custom-progress-title {
-  display: flex;
-  align-items: center;
-  font-size: 15px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 4px;
-}
-
-.custom-progress-icon {
-  margin-right: 8px;
-  color: #0071E3;
-  animation: spin 2s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.custom-progress-percentage {
-  font-size: 15px;
-  font-weight: 600;
-  color: #0071E3;
-  background: rgba(0, 113, 227, 0.08);
-  padding: 4px 12px;
-  border-radius: 20px;
-  border: 1px solid rgba(0, 113, 227, 0.12);
-}
-
-.custom-progress-bar {
-  margin: 8px 0;
-}
-
-.custom-progress-bar .el-progress-bar__outer {
-  background-color: rgba(255, 255, 255, 0.8) !important;
-  border-radius: 10px !important;
-  overflow: hidden;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.custom-progress-bar .el-progress-bar__inner {
-  background: linear-gradient(90deg, #0071E3 0%, #005bb5 50%, #0071E3 100%) !important;
-  border-radius: 10px !important;
-  transition: width 0.3s ease;
-}
-
-/* 进度完成时的绿色样式 */
-.custom-progress-bar.completed .el-progress-bar__inner {
-  background: linear-gradient(90deg, #4CAF50 0%, #45a049 50%, #4CAF50 100%) !important;
-}
-
-.custom-progress-details {
-  margin-top: 4px;
-}
-
-.custom-progress-message {
-  margin: 0 0 8px 0;
-  font-size: 14px;
-  color: #5a6c7d;
-  font-weight: 400;
-}
-
-.custom-progress-stats {
-  margin: 0;
-  font-size: 14px;
-  color: #0071E3;
-  font-weight: 500;
-  background: none;
-  padding: 0;
-  border-radius: 0;
-  border-left: none;
-}
-
-/* 页脚样式 */
+/* 页脚 */
 .custom-app-footer {
-  position: fixed; /* 固定定位 */
-  bottom: 0; /* 距离底部0 */
-  left: 0; /* 距离左侧0 */
-  width: 100%; /* 宽度100% */
-  height: 48px; /* 增加高度 */
+  position: static;
+  flex-shrink: 0;
+  width: 100%;
+  height: 48px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 24px; /* 增加左右内边距 */
-  background: linear-gradient(180deg, rgba(239, 239, 244, 0.95) 0%, rgba(239, 239, 244, 1) 100%); /* 渐变背景 */
-  border-top: 1px solid #d1d1d6; /* 稍微深一点的边框 */
-  box-sizing: border-box; /* 包含padding和border在内的宽度计算 */
-  z-index: 100; /* 确保在其他内容之上 */
-  backdrop-filter: blur(10px); /* 毛玻璃效果 */
+  padding: 0 24px;
+  background: #f3f6fb;
+  border-top: 1px solid #dfe5ee;
+  box-sizing: border-box;
 }
 
-/* 确保链接样式保持一致 */
 .footer-links {
   display: flex;
   align-items: center;
@@ -1161,7 +1642,6 @@ html, body, #app {
   text-decoration: none;
   color: #409EFF;
   font-size: 12px;
-  /* margin-left: 15px; */ /* 这个 margin 应该只对 footer-links 内部的链接有效，或根据实际需求调整 */
 }
 
 .footer-links .custom-footer-link {
@@ -1177,9 +1657,9 @@ html, body, #app {
   vertical-align: middle;
 }
 
-/* 使用说明弹窗样式 */
+/* 弹窗 */
 .el-dialog {
- border-radius: 10px !important;
+  border-radius: 10px !important;
 }
 
 .help-sections {
@@ -1241,42 +1721,17 @@ html, body, #app {
   font-weight: 600;
 }
 
-.el-form {
-  padding-bottom: 120px; /* 为固定按钮留出空间 */
-}
-
-/* 针对输入框和按钮组合的新样式 */
-.custom-input-group {
-  display: flex;
-  align-items: center;
-  gap: 10px; /* 间距与日期选择器一致 */
-  width: 100%;
-  flex-wrap: nowrap; /* 不允许换行，保持在同一行 */
-}
-
-.custom-input-group .custom-input {
-  flex: 1; /* 输入框占据剩余空间 */
-  min-width: 0; /* 允许输入框收缩 */
-}
-
-.custom-input-group .custom-select {
-  flex: 1; /* 选择器占据剩余空间 */
-  min-width: 200px; /* 设置最小宽度 */
-}
-
-/* 日期选择器下拉选项居中显示 */
+/* 下拉选项居中 */
 .custom-select .el-select-dropdown__item {
   text-align: center !important;
   justify-content: center !important;
 }
 
-/* 确保下拉框选项的文字居中 - 使用更具体的选择器 */
 .el-select-dropdown .el-select-dropdown__item {
   text-align: center !important;
   justify-content: center !important;
 }
 
-/* 全局样式确保所有日期选择器的选项都居中 */
 .el-select-dropdown__item {
   text-align: center !important;
   display: flex !important;
@@ -1284,84 +1739,24 @@ html, body, #app {
   align-items: center !important;
 }
 
-/* 特别针对我们的日期选择器 */
 .el-popper[data-popper-placement] .el-select-dropdown__item {
   text-align: center !important;
   justify-content: center !important;
 }
 
-/* 当移动磁盘输入框区域有推出按钮时的特殊样式 */
-.custom-input-group .custom-date-action-button,
-.custom-input-group .custom-eject-button {
-  flex-shrink: 0; /* 防止按钮被压缩 */
-  white-space: nowrap; /* 防止按钮文字换行 */
-}
-
-html, body {
-  height: 100%;
-  overflow: hidden;
-}
-
-.el-main {
-  overflow: visible !important;
-}
-
-/* 主操作卡片样式 - 固定定位 */
-.main-action-card {
-  position: fixed;
-  bottom: 68px;
-  left: 50%;
-  transform: translateX(-50%);
+/* 进度页面 */
+.copy-progress-fullscreen {
   width: 100%;
-  max-width: 520px;
-  background: transparent;
-  height: 80px;
-  box-sizing: border-box;
-  z-index: 50;
+  flex: 1;
+  min-height: 420px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-}
-
-.main-action-error {
-  color: #FF3B30;
-  font-size: 0.95em;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 6px;
-  padding: 6px 16px;
-  box-shadow: 0 2px 8px rgba(255,59,48,0.08);
-  min-height: 28px;
-}
-
-.main-action-error .el-icon {
-  margin-right: 6px;
-  font-size: 1.1em;
-}
-
-.action-button-container {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.main-action-card .main-action-button {
-  margin-top: 0;
-  margin-bottom: 0;
-  min-width: 150px;
-}
-
-.main-action-card .custom-message-text {
-  margin-bottom: 16px;
+  background: transparent;
+  margin: 0 auto;
+  padding: 32px 24px;
+  box-sizing: border-box;
 }
 
 .main-progress-content {
@@ -1375,33 +1770,6 @@ html, body {
   padding: 0;
 }
 
-/* 淡入淡出动画 */
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s;
-}
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: none; }
-}
-
-.copy-progress-fullscreen {
-  width: 100%;
-  flex: 1;
-  min-height: 420px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  margin: 16px auto 0 auto;
-  padding: 32px 24px;
-  box-sizing: border-box;
-}
-
 .custom-progress-icon-large {
   display: flex;
   justify-content: center;
@@ -1409,12 +1777,19 @@ html, body {
   width: 100%;
   margin-bottom: 8px;
 }
+
 .custom-progress-icon-large .custom-progress-icon {
   font-size: 40px !important;
-  color: #0071E3;
+  color: #1769e0;
   margin: 0;
   animation: spin 2s linear infinite;
 }
+
+.custom-progress-icon-large .custom-progress-icon.is-complete {
+  color: #237a3b;
+  animation: none;
+}
+
 .custom-progress-title {
   display: flex;
   justify-content: center;
@@ -1425,64 +1800,132 @@ html, body {
   margin-bottom: 4px;
 }
 
-.copy-options-row {
+.custom-progress-percentage {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1769e0;
+  background: rgba(23, 105, 224, 0.08);
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(23, 105, 224, 0.12);
+}
+
+.custom-progress-bar {
+  margin: 8px 0;
+}
+
+.custom-progress-bar .el-progress-bar__outer {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.custom-progress-bar .el-progress-bar__inner {
+  background: linear-gradient(90deg, #1769e0 0%, #4c9aff 50%, #1769e0 100%) !important;
+  border-radius: 10px !important;
+  transition: width 0.3s ease;
+}
+
+.custom-progress-bar.completed .el-progress-bar__inner {
+  background: linear-gradient(90deg, #4CAF50 0%, #45a049 50%, #4CAF50 100%) !important;
+}
+
+.custom-progress-details {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.custom-progress-message {
+  margin: 0 0 8px 0;
+  max-width: 340px;
+  font-size: 14px;
+  color: #5a6c7d;
+  font-weight: 400;
+  line-height: 1.45;
+  word-break: break-all;
+}
+
+.custom-progress-stats {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: #1769e0;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.cancel-copy-button {
+  margin-top: 14px !important;
+  min-width: 116px;
+  border-radius: 10px !important;
+}
+
+/* 移动磁盘消息 */
+.sd-card-message {
+  padding: 4px 0;
+}
+
+.sd-card-title {
   display: flex;
   align-items: center;
-  gap: 32px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
 }
 
-.copy-options-row .el-checkbox__label {
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.2;
+.sd-card-details {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  color: #606266;
+  margin-left: 28px;
 }
 
-/* 全局样式 */
-body {
-  background: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
-}
-.content-wrapper {
-  background: rgba(255,255,255,0.7);
-  border-radius: 22px;
-  box-shadow: 0 8px 32px rgba(60, 60, 120, 0.18);
-  padding: 36px 30px 18px 30px;
-  backdrop-filter: blur(12px) saturate(180%);
-  border: 1.5px solid rgba(255,255,255,0.18);
-}
-.custom-label {
-  color: #2563eb !important;
-  font-weight: 600;
-}
-.custom-input, .custom-select {
-  border-radius: 14px !important;
-  background: rgba(255,255,255,0.6) !important;
-  border: 1.5px solid #e0e7ef !important;
-  color: #2563eb !important;
-  font-size: 13px !important;
-  backdrop-filter: blur(2px);
-}
-.custom-date-action-button, .main-action-button, .custom-eject-button {
-  border-radius: 14px !important;
-  background: linear-gradient(90deg, #60a5fa 0%, #38bdf8 100%) !important;
-  color: #fff !important;
-  font-weight: 600 !important;
-  border: none !important;
-  box-shadow: 0 2px 8px rgba(96,165,250,0.10) !important;
-}
-.custom-date-action-button:hover, .main-action-button:hover {
-  background: linear-gradient(90deg, #2563eb 0%, #38bdf8 100%) !important;
-}
-.custom-eject-button {
-  background: linear-gradient(90deg, #fbbf24 0%, #f87171 100%) !important;
-}
-.custom-eject-button:hover {
-  background: linear-gradient(90deg, #f87171 0%, #fbbf24 100%) !important;
-}
-.copy-options-row {
-  gap: 16px !important;
-}
-.custom-checkbox {
-  color: #2563eb !important;
+.sd-card-label {
+  font-weight: 500;
+  margin-bottom: 2px;
 }
 
-</style> 
+.sd-card-path {
+  color: #909399;
+  font-family: monospace;
+}
+
+/* 动画 */
+.view-fade-enter-active,
+.view-fade-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.view-fade-enter-from,
+.view-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 响应式 */
+@media (max-width: 720px) {
+  .custom-input-group {
+    align-items: center;
+    flex-direction: row;
+  }
+
+  .custom-date-action-button,
+  .custom-eject-button {
+    width: 104px;
+  }
+}
+</style>

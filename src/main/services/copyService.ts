@@ -4,12 +4,21 @@ import type { CopyOperationResult, FileCopyProgress, FileCopyRequest } from '../
 import {
   copyAndVerifyFile,
   createTargetDir,
+  ensureEnoughSpace,
+  formatBytes,
+  getFileDateFromStats,
+  getFileSize,
   getFileModifiedDate,
   scanMediaFiles
 } from '../utils/fileOperations'
 import { writeToLog } from '../utils/logger'
 
 type ProgressReporter = (progress: FileCopyProgress) => void
+let shouldCancelCopy = false
+
+export function cancelMediaCopy(): void {
+  shouldCancelCopy = true
+}
 
 function shouldCopyFile(filePath: string, request: FileCopyRequest): boolean {
   const ext = path.extname(filePath).toLowerCase()
@@ -39,24 +48,48 @@ function getBaseTargetDir(filePath: string, request: FileCopyRequest): string | 
   return null
 }
 
-function filterFilesByDate(files: string[], selectedDates: string[]): string[] {
+async function filterFilesByDate(files: string[], selectedDates: string[]): Promise<string[]> {
   if (selectedDates.includes('all')) {
     writeToLog('info', '用户选择了全部日期，将拷贝所有文件。')
     return files
   }
 
-  const filtered = files.filter(filePath => selectedDates.includes(getFileModifiedDate(filePath)))
+  const filtered: string[] = []
+  for (const filePath of files) {
+    const fileDate = await getFileDateFromStats(filePath)
+    if (selectedDates.includes(fileDate)) {
+      filtered.push(filePath)
+    }
+  }
   writeToLog('info', `根据选择的日期 [${selectedDates.join(', ')}] 过滤后，需要拷贝 ${filtered.length} 个文件。`)
   return filtered
+}
+
+async function getRequiredSpaceByTargetDir(files: string[], request: FileCopyRequest): Promise<Map<string, number>> {
+  const spaceByTargetDir = new Map<string, number>()
+
+  for (const filePath of files) {
+    const baseTargetDir = getBaseTargetDir(filePath, request)
+    if (!baseTargetDir) {
+      continue
+    }
+
+    const currentSize = spaceByTargetDir.get(baseTargetDir) || 0
+    spaceByTargetDir.set(baseTargetDir, currentSize + await getFileSize(filePath))
+  }
+
+  return spaceByTargetDir
 }
 
 export async function copyMediaFiles(
   request: FileCopyRequest,
   reportProgress: ProgressReporter
 ): Promise<CopyOperationResult> {
+  shouldCancelCopy = false
   const { sdCardDir, activityName, selectedDates, separateRawJpg } = request
   let totalFiles = 0
   let filesProcessed = 0
+  let filesRenamed = 0
   let filesSkipped = 0
   const errors: string[] = []
 
@@ -65,7 +98,7 @@ export async function copyMediaFiles(
     const allFiles = await scanMediaFiles(sdCardDir)
     writeToLog('info', `扫描完成，发现 ${allFiles.length} 个媒体文件。`)
 
-    let filesToCopy = filterFilesByDate(allFiles, selectedDates)
+    let filesToCopy = await filterFilesByDate(allFiles, selectedDates)
     filesToCopy = filesToCopy.filter(filePath => shouldCopyFile(filePath, request))
     writeToLog('info', `根据照片/视频开关过滤后，最终需要拷贝 ${filesToCopy.length} 个文件。`)
 
@@ -91,7 +124,37 @@ export async function copyMediaFiles(
       return { success: false, message: emptyMessage, errors: [] }
     }
 
+    const requiredSpaceByTargetDir = await getRequiredSpaceByTargetDir(filesToCopy, request)
+    for (const [targetDir, requiredBytes] of requiredSpaceByTargetDir) {
+      await ensureEnoughSpace([targetDir], requiredBytes)
+      writeToLog('info', `目标目录空间检查通过: ${targetDir}, 预计需要 ${formatBytes(requiredBytes)}`)
+    }
+
     for (const sourcePath of filesToCopy) {
+      if (shouldCancelCopy) {
+        const cancelMessage = '已取消拷贝'
+        reportProgress({
+          percentage: Math.round(((filesProcessed + filesRenamed + filesSkipped + errors.length) / totalFiles) * 100),
+          message: cancelMessage,
+          fileProcessed: '',
+          totalFiles,
+          processedFiles: filesProcessed + filesRenamed + filesSkipped + errors.length
+        })
+
+        return {
+          success: false,
+          message: cancelMessage,
+          errors,
+          summary: {
+            copied: filesProcessed,
+            renamed: filesRenamed,
+            skipped: filesSkipped,
+            failed: errors.length,
+            total: totalFiles
+          }
+        }
+      }
+
       const fileDate = getFileModifiedDate(sourcePath)
       const baseTargetDir = getBaseTargetDir(sourcePath, request)
 
@@ -102,7 +165,7 @@ export async function copyMediaFiles(
 
       const targetDirForFile = await createTargetDir(baseTargetDir, fileDate, activityName)
       const result = await copyAndVerifyFile(sourcePath, targetDirForFile, separateRawJpg)
-      const processedCount = () => filesProcessed + filesSkipped
+      const processedCount = () => filesProcessed + filesRenamed + filesSkipped + errors.length
       const percentage = () => Math.round((processedCount() / totalFiles) * 100)
 
       if (result.status === 'copied') {
@@ -110,6 +173,15 @@ export async function copyMediaFiles(
         reportProgress({
           percentage: percentage(),
           message: `正在拷贝: ${path.basename(sourcePath)}`,
+          fileProcessed: sourcePath,
+          totalFiles,
+          processedFiles: processedCount()
+        })
+      } else if (result.status === 'renamed') {
+        filesRenamed++
+        reportProgress({
+          percentage: percentage(),
+          message: `同名文件已改名保存: ${path.basename(result.targetPath || sourcePath)}`,
           fileProcessed: sourcePath,
           totalFiles,
           processedFiles: processedCount()
@@ -136,13 +208,13 @@ export async function copyMediaFiles(
       }
     }
 
-    let finalMessage = errors.length > 0
-      ? `拷贝完成，但有 ${errors.length} 个文件拷贝失败。`
-      : `所有 ${filesProcessed} 个文件拷贝成功！`
-
-    if (filesSkipped > 0) {
-      finalMessage += ` 已跳过 ${filesSkipped} 个重复文件。`
-    }
+    const finalMessage = [
+      errors.length > 0 ? '拷贝完成，但有文件失败' : '拷贝完成',
+      `成功 ${filesProcessed} 个`,
+      filesRenamed > 0 ? `改名保存 ${filesRenamed} 个` : '',
+      filesSkipped > 0 ? `跳过重复 ${filesSkipped} 个` : '',
+      errors.length > 0 ? `失败 ${errors.length} 个` : ''
+    ].filter(Boolean).join('，')
 
     reportProgress({
       percentage: 100,
@@ -152,12 +224,23 @@ export async function copyMediaFiles(
     })
 
     writeToLog('info', finalMessage, '错误详情:', errors)
-    return { success: errors.length === 0, message: finalMessage, errors }
+    return {
+      success: errors.length === 0,
+      message: finalMessage,
+      errors,
+      summary: {
+        copied: filesProcessed,
+        renamed: filesRenamed,
+        skipped: filesSkipped,
+        failed: errors.length,
+        total: totalFiles
+      }
+    }
   } catch (error: any) {
     const errorMessage = `文件拷贝过程中的致命错误: ${error.message}`
     writeToLog('error', errorMessage, error.stack)
     reportProgress({
-      percentage: totalFiles > 0 ? Math.round(((filesProcessed + filesSkipped) / totalFiles) * 100) : 0,
+      percentage: totalFiles > 0 ? Math.round(((filesProcessed + filesRenamed + filesSkipped + errors.length) / totalFiles) * 100) : 0,
       message: errorMessage,
       fileProcessed: '',
       error: errorMessage

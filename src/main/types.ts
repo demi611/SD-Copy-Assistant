@@ -20,14 +20,22 @@ export interface FileCopyProgress {
 }
 
 export interface FileCopyResult {
-  status: 'copied' | 'skipped' | 'failed';
+  status: 'copied' | 'renamed' | 'skipped' | 'failed';
   error?: string;
+  targetPath?: string;
 }
 
 export interface CopyOperationResult {
   success: boolean;
   message: string;
   errors?: string[];
+  summary?: {
+    copied: number;
+    renamed: number;
+    skipped: number;
+    failed: number;
+    total: number;
+  };
 }
 
 // 驱动器相关类型
@@ -51,4 +59,4 @@ export interface WindowConfig {
   show: boolean;
   autoHideMenuBar: boolean;
   icon?: string;
-} 
+}

@@ -1,4 +1,4 @@
-import { getFileModifiedDate, scanMediaFiles } from '../utils/fileOperations'
+import { getFileDateFromStats, scanMediaFiles } from '../utils/fileOperations'
 import { writeToLog } from '../utils/logger'
 
 export async function scanMediaFileDates(dirPath: string): Promise<string[]> {
@@ -6,7 +6,7 @@ export async function scanMediaFileDates(dirPath: string): Promise<string[]> {
   const dates = new Set<string>()
 
   for (const filePath of files) {
-    const date = getFileModifiedDate(filePath)
+    const date = await getFileDateFromStats(filePath)
     if (date !== '00000000') {
       dates.add(date)
     }

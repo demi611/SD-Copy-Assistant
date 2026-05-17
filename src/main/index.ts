@@ -9,7 +9,7 @@ import path from 'path'
 import os from 'os'
 import fs from 'fs-extra'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { copyMediaFiles } from './services/copyService'
+import { cancelMediaCopy, copyMediaFiles } from './services/copyService'
 import { DriveMonitor, getRemovableDrives } from './services/driveService'
 import { ejectSDCard } from './services/ejectService'
 import { scanMediaFileDates } from './services/mediaService'
@@ -225,6 +225,12 @@ function registerIpcHandlers(): void {
     return copyMediaFiles(request, (progress: FileCopyProgress) => {
       event.sender.send('file-copy-progress', progress)
     })
+  })
+
+  ipcMain.handle('cancel-file-copy', async () => {
+    writeToLog('info', 'IPC: 收到取消文件拷贝请求')
+    cancelMediaCopy()
+    return { success: true }
   })
 }
 
