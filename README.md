@@ -3,7 +3,7 @@
 一款专为摄影师设计的跨平台桌面工具，用于将相机存储卡中的照片和视频高效、安全地拷贝到电脑，并自动按日期和活动名称整理归档。
 
 ![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
-![Version](https://img.shields.io/badge/Version-1.0.2-green)
+![Version](https://img.shields.io/badge/Version-1.0.3-green)
 ![Tech](https://img.shields.io/badge/Tech-Electron%20%7C%20Vue3%20%7C%20TypeScript-orange)
 
 ## 核心功能
