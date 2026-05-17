@@ -1,6 +1,6 @@
 import fs from 'fs-extra'
 import path from 'path'
-import crypto from 'crypto-js'
+import { createHash } from 'crypto'
 import dayjs from 'dayjs'
 import { 
   IMAGE_EXTENSIONS, 
@@ -25,14 +25,17 @@ export function getFileModifiedDate(filePath: string): string {
 
 // 计算文件哈希值（优化版本）
 export async function calculateFileHash(filePath: string): Promise<string> {
-  try {
-    const buffer = await fs.readFile(filePath)
-    const wordArray = crypto.lib.WordArray.create(buffer as any)
-    return crypto.SHA256(wordArray).toString()
-  } catch (error) {
-    writeToLog('error', `计算文件哈希失败: ${filePath}`, error)
-    throw error
-  }
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha256')
+    const stream = fs.createReadStream(filePath)
+
+    stream.on('data', chunk => hash.update(chunk))
+    stream.on('end', () => resolve(hash.digest('hex')))
+    stream.on('error', error => {
+      writeToLog('error', `计算文件哈希失败: ${filePath}`, error)
+      reject(error)
+    })
+  })
 }
 
 // 扫描媒体文件（优化版本）
