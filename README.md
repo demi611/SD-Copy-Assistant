@@ -1,328 +1,189 @@
-# 光影拷卡助手 📸
+# 光影拷卡助手
 
-一款专为摄影师和摄影爱好者设计的智能SD卡文件拷贝工具，让您的照片和视频管理变得简单高效。
+一款专为摄影师设计的跨平台桌面工具，用于将相机存储卡中的照片和视频高效、安全地拷贝到电脑，并自动按日期和活动名称整理归档。
 
-![应用截图](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
-![版本](https://img.shields.io/badge/Version-1.0.2-green)
-![技术栈](https://img.shields.io/badge/Tech-Electron%20%7C%20Vue3%20%7C%20TypeScript-orange)
-![代码质量](https://img.shields.io/badge/Code%20Quality-重构优化-brightgreen)
+![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
+![Version](https://img.shields.io/badge/Version-1.0.2-green)
+![Tech](https://img.shields.io/badge/Tech-Electron%20%7C%20Vue3%20%7C%20TypeScript-orange)
 
-## ✨ 核心特性
+## 核心功能
 
-### 🔌 智能SD卡管理
-- **自动检测插入**：应用启动时自动识别SD卡，无需手动选择
-- **实时监控**：实时监控SD卡插拔状态，自动更新界面
-- **安全推出**：一键安全推出SD卡，保护数据完整性
-- **多平台支持**：完美支持 macOS、Windows 和 Linux 系统
+### 智能磁盘识别
+- **自动检测可移动磁盘**：实时扫描插入的U盘、SD卡、移动硬盘，自动识别相机存储卡（通过DCIM等典型目录判断）
+- **插拔状态监控**：1秒间隔轮询，磁盘插入或移除时自动通知界面
+- **一键安全推出**：支持macOS（diskutil）、Windows（Shell.Application）、Linux（umount）安全卸载
 
-### 📁 智能文件组织
-- **按日期分类**：自动扫描文件修改日期，支持按日期选择性拷贝
-- **活动命名**：自定义活动名称，文件夹自动命名为 `日期_活动名称` 格式
-- **RAW+JPG分离**：可选择将RAW文件和JPG文件分别存储到不同子文件夹
-- **分类存储**：图片和视频可设置不同的目标目录
+### 灵活的拷贝策略
+- **按日期筛选**：自动提取文件日期，支持单选、多选或全选日期进行拷贝。JPG/JPEG优先读取EXIF拍摄日期，其他文件使用修改时间
+- **活动命名**：自定义活动名称，文件夹自动命名为 `YYYYMMDD_活动名称` 格式
+- **分类存储**：图片和视频可分别设置不同的目标目录
+- **RAW+JPG分离**：开启后，RAW文件和JPG文件自动存入同日期文件夹下的 `RAW/` 和 `JPG/` 子目录
+- **照片/视频开关**：可独立选择只拷贝照片、只拷贝视频，或两者都拷贝
 
-### 🎯 精准文件筛选
-- **多格式支持**：
-  - **图片格式**：JPG、JPEG、PNG、RAW、NEF、CR2、CR3、ARW、DNG、RAF、ORF、PEF、SRW、X3F
-  - **视频格式**：MP4、AVI、MOV、INSV
-- **选择性拷贝**：可单独选择拷贝照片或视频，或两者同时拷贝
-- **日期筛选**：支持选择特定日期或全部日期进行拷贝
+### 数据安全与校验
+- **SHA256哈希校验**：拷贝后逐文件对比源文件与目标文件的SHA256哈希值，确保数据完整
+- **智能重复处理**：目标位置已存在同名文件时，对比哈希值——内容相同则跳过，内容不同则自动重命名保存（如 `IMG_001_1.jpg`）
+- **磁盘空间预检**：拷贝前自动计算所需空间，若目标磁盘空间不足（含512MB缓冲）提前报错，避免拷贝到一半失败
+- **取消拷贝**：拷贝过程中可随时取消，已拷贝文件保留，未拷贝文件中止
 
-### 🔒 数据安全保障
-- **文件完整性校验**：使用SHA256哈希算法验证文件完整性
-- **重复文件检测**：自动跳过已存在的相同文件，避免重复拷贝
-- **错误恢复机制**：详细的错误提示和日志记录，便于问题排查
-- **实时进度显示**：可视化进度条和状态信息，实时了解拷贝进展
+### 用户体验
+- **实时进度反馈**：可视化进度条，显示当前处理文件名、百分比、剩余时间估算
+- **结果统计**：拷贝完成后展示成功、重命名、跳过、失败的数量明细
+- **完整日志**：操作日志自动写入用户目录，按天切分，保留最近7天
+- **中文界面**：基于 Element Plus 的现代化中文界面
 
-### 📊 用户体验优化
-- **现代化界面**：基于Element Plus的美观界面设计
-- **中文本地化**：完整的中文界面和提示信息
-- **实时反馈**：操作状态实时反馈，用户体验流畅
-- **详细日志**：完整的操作日志记录，便于调试和维护
-- **自定义图标**：支持设置个性化应用图标，包含圆角和边距优化
+## 支持格式
 
-## 🚀 快速开始
+| 类型 | 格式 |
+|------|------|
+| 图片 | JPG、JPEG、PNG、RAW、NEF、CR2、CR3、ARW、DNG、RAF、ORF、PEF、SRW、X3F |
+| 视频 | MP4、AVI、MOV、INSV |
+
+## 快速开始
 
 ### 安装要求
-- **操作系统**：macOS 10.14+、Windows 10+ 或 Linux
-- **存储空间**：至少100MB可用空间
-- **权限**：文件系统读写权限
+- **操作系统**：macOS 10.14+ / Windows 10+ / Linux
+- **存储空间**：至少 100 MB 可用空间
 
 ### 使用步骤
 
-1. **启动应用**
-   - 双击应用图标启动光影拷卡助手
-
-2. **设置目标目录**
-   - 选择图片存储目录（默认为系统图片文件夹）
-   - 选择视频存储目录（默认为系统视频文件夹）
-
-3. **连接SD卡**
-   - 插入SD卡，应用会自动检测并显示SD卡信息
-   - 如未自动检测，可手动选择SD卡目录
-
-4. **扫描文件日期**
-   - 点击"获取日期"按钮扫描SD卡中的文件
-   - 系统会自动提取所有不重复的文件日期
-
-5. **选择拷贝选项**
-   - 选择要拷贝的日期（可多选或选择"全部日期"）
-   - 设置活动名称（可选，默认为"媒体文件"）
-   - 选择是否启用RAW+JPG分离存储
+1. **启动应用**：双击应用图标启动
+2. **设置目标目录**：选择图片和视频的默认保存目录
+3. **连接存储卡**：插入SD卡或U盘，应用会自动检测并显示在列表中
+4. **扫描日期**：点击"获取日期"，扫描媒体文件并提取日期列表
+5. **配置拷贝选项**：
+   - 选择要拷贝的日期（可多选或"全部日期"）
+   - 填写活动名称（可选）
+   - 选择是否开启 RAW+JPG 分离
    - 选择拷贝照片和/或视频
+6. **开始拷贝**：点击"开始拷贝"，观察实时进度
+7. **安全推出**：拷贝完成后，点击"推出磁盘"安全移除
 
-6. **开始拷贝**
-   - 点击"开始拷贝"按钮
-   - 观察实时进度和状态信息
-   - 等待拷贝完成
-
-7. **安全推出**
-   - 拷贝完成后，点击"推出SD卡"按钮
-   - 等待系统确认后安全移除SD卡
-
-## 📂 文件组织结构
-
-拷贝后的文件将按以下结构组织：
+### 拷贝后的文件结构
 
 ```
-目标目录/
+图片目标目录/
 ├── 20231225_圣诞聚会/
 │   ├── IMG_001.jpg
 │   ├── IMG_002.CR3
 │   └── VID_001.mp4
 ├── 20231226_家庭旅行/
-│   ├── RAW/                 # 启用RAW+JPG分离时
+│   ├── RAW/
 │   │   ├── IMG_003.CR3
 │   │   └── IMG_004.NEF
-│   ├── JPG/                 # 启用RAW+JPG分离时
+│   ├── JPG/
 │   │   ├── IMG_003.jpg
 │   │   └── IMG_004.jpg
 │   └── VID_002.mov
 ```
 
-## 🛠️ 技术架构
+## 技术架构
 
 ### 核心技术栈
-- **[Electron](https://www.electronjs.org/)** - 跨平台桌面应用框架
-- **[Vue 3](https://vuejs.org/)** - 渐进式JavaScript框架，使用Composition API
-- **[TypeScript](https://www.typescriptlang.org/)** - 类型安全的JavaScript超集
-- **[Vite](https://vitejs.dev/)** - 极速前端构建工具
-- **[Element Plus](https://element-plus.org/)** - Vue 3组件库
-
-### 关键依赖
-- **[fs-extra](https://github.com/jprichardson/node-fs-extra)** - 增强的文件系统操作
-- **[crypto-js](https://github.com/brix/crypto-js)** - JavaScript加密库，用于文件哈希校验
-- **[dayjs](https://day.js.org/)** - 轻量级日期处理库
-- **[@electron-toolkit/utils](https://github.com/alex8088/electron-toolkit)** - Electron实用工具
-- **[ImageMagick](https://imagemagick.org/)** - 图像处理工具（用于图标生成）
+- **[Electron 30](https://www.electronjs.org/)** — 跨平台桌面应用框架
+- **[Vue 3](https://vuejs.org/)** — 渐进式前端框架，Composition API
+- **[TypeScript](https://www.typescriptlang.org/)** — 类型安全
+- **[Vite](https://vitejs.dev/)** — 前端构建工具
+- **[Element Plus](https://element-plus.org/)** — Vue 3 组件库
+- **[dayjs](https://day.js.org/)** — 日期处理
+- **[fs-extra](https://github.com/jprichardson/node-fs-extra)** — 增强文件系统操作
 
 ### 项目结构
 ```
-SD-Copy-Assistant/
-├── src/                      # 源代码目录
-│   ├── main/                 # Electron主进程
-│   │   ├── index.ts          # 主进程入口（精简后）
-│   │   ├── constants.ts      # 统一常量管理
-│   │   ├── types.ts          # 统一类型定义
-│   │   └── utils/            # 工具模块
-│   │       ├── logger.ts     # 日志管理模块
-│   │       └── fileOperations.ts # 文件操作模块
-│   ├── renderer/             # Vue渲染进程
-│   │   └── src/
-│   │       ├── App.vue       # 主界面组件
-│   │       ├── main.ts       # Vue应用入口
-│   │       └── types/        # TypeScript类型定义
-│   │           ├── electron.d.ts
-│   │           ├── element-plus-locale.d.ts
-│   │           └── element-plus.d.ts
-│   ├── preload/              # 预加载脚本
-│   │   └── index.ts          # 安全的IPC接口定义
-│   ├── assets/               # 静态资源
-│   │   └── vue.svg           # Vue图标
-│   └── vite-env.d.ts         # Vite环境类型定义
-├── public/                   # 公共资源目录
-│   └── vite.svg              # 应用图标（favicon）
-├── build/                    # 构建资源目录
-│   ├── icon.svg              # 图标源文件
-│   ├── icon.png              # Linux图标
-│   ├── icon.ico              # Windows图标
-│   └── icon.icns             # macOS图标
-├── scripts/                  # 构建和工具脚本
-│   ├── generate-icons.cjs    # 图标生成脚本
-│   ├── setup-custom-icon.cjs # 自定义图标设置
-│   ├── setup-custom-icon-with-padding.cjs # 带边距优化
-│   ├── setup-rounded-icon.cjs # 圆角图标设置
-│   ├── clear-icon-cache.cjs  # 清除图标缓存
-│   └── README.md             # 脚本使用说明
-├── index.html                # 应用入口HTML文件
-├── package.json              # 项目配置和依赖
-├── package-lock.json         # 依赖版本锁定文件
-├── vite.config.ts            # Vite构建配置
-├── tsconfig.json             # TypeScript配置
-├── tsconfig.node.json        # Node.js TypeScript配置
-├── electron-builder.json5    # 应用打包配置
-├── .gitignore                # Git忽略文件配置
-├── CUSTOM_ICON_GUIDE.md      # 自定义图标指南
-└── README.md                 # 项目说明文档
-
-# 以下目录在开发和构建过程中生成，不被Git跟踪：
-├── node_modules/             # 项目依赖包（npm install生成）
-├── dist-electron/            # Electron构建输出目录
-├── dist/                     # 前端构建输出目录（构建时生成）
-├── release/                  # 应用打包输出目录
-└── logs/                     # 应用运行日志目录
+src/
+├── main/                       # Electron 主进程
+│   ├── index.ts                # 主进程入口（窗口管理、IPC注册）
+│   ├── constants.ts            # 文件扩展名、应用配置常量
+│   ├── types.ts                # TypeScript 类型定义
+│   ├── services/               # 核心业务服务
+│   │   ├── copyService.ts      # 文件拷贝、取消、进度上报
+│   │   ├── driveService.ts     # 可移动磁盘检测与插拔监控
+│   │   ├── ejectService.ts     # 跨平台安全推出磁盘
+│   │   └── mediaService.ts     # 媒体文件日期扫描
+│   └── utils/
+│       ├── fileOperations.ts   # 文件拷贝、哈希校验、EXIF读取、空间检查
+│       └── logger.ts           # 日志管理与清理
+├── preload/
+│   └── index.ts                # 安全的 IPC 桥接（contextIsolation）
+└── renderer/src/
+    ├── App.vue                 # 主界面
+    ├── main.ts                 # Vue 应用入口
+    └── types/                  # 渲染进程类型定义
 ```
 
-## 🔧 开发指南
+## 开发指南
 
 ### 环境准备
 ```bash
-# 克隆项目
 git clone <repository-url>
 cd SD-Copy-Assistant
-
-# 安装依赖
 npm install
 ```
 
-### 开发命令
+### 常用命令
 ```bash
-# 启动开发服务器
+# 开发调试
 npm run dev
 
-# 构建应用
+# 构建前端 + 打包应用（含 dmg/nsis/appimage）
 npm run build
 
-# 仅构建Electron应用
+# 仅打包（需先执行 vite build）
 npm run build:electron
-
-# 预览构建结果
-npm run preview
 ```
 
 ### 图标自定义
-应用支持自定义图标功能，提供多种设置选项：
-
 ```bash
-# 生成默认图标（从SVG源文件）
-npm run generate-icons
-
-# 设置自定义图标（基础版本）
-npm run setup-icon
-
-# 设置自定义图标（带边距优化，推荐）
-npm run setup-icon-with-padding
-
-# 设置圆角图标（现代化设计）
-npm run setup-rounded-icon
-
-# 清除系统图标缓存
-npm run clear-icon-cache
+# 将 PNG 图片放到 build/custom-icon.png，然后执行：
+npm run setup-icon-with-padding   # 推荐，自动添加边距
+npm run clear-icon-cache          # 清除系统图标缓存
 ```
 
-**使用步骤**：
-1. 将您的PNG图片复制到 `build/custom-icon.png`（此文件不会被Git跟踪）
-2. 运行相应的图标设置命令
-3. 清除系统缓存：`npm run clear-icon-cache`
-4. 重新启动应用查看效果
+### 打包配置
+应用使用 `electron-builder` 打包：
+- **macOS**：`光影拷卡助手-Mac-${version}-Installer.dmg`
+- **Windows**：`PhotoCopyAssistant-Windows-${version}-Setup.exe`（NSIS，可选安装目录）
+- **Linux**：`光影拷卡助手-Linux-${version}.AppImage`
 
-详细说明请参考 [自定义图标指南](CUSTOM_ICON_GUIDE.md) 和 [脚本说明](scripts/README.md)。
+## 系统要求
 
-### 构建配置
-应用使用 `electron-builder` 进行打包，支持：
-- **macOS**: DMG安装包
-- **Windows**: NSIS安装程序
-- **Linux**: AppImage便携应用
+| 项目 | 最低配置 | 推荐配置 |
+|------|----------|----------|
+| CPU | 双核处理器 | 四核及以上 |
+| 内存 | 4 GB | 8 GB |
+| 磁盘 | 100 MB 可用空间 | 1 GB |
+| 系统 | macOS 10.14 / Windows 10 / Linux | — |
 
-## 📈 最新更新 (v1.0.2)
+## 故障排除
 
-### 🚀 代码重构优化
-- **模块化重构**：将主进程拆分为多个独立模块，提升代码可维护性
-- **常量统一管理**：创建 `constants.ts` 统一管理文件扩展名和应用配置
-- **类型定义集中化**：创建 `types.ts` 统一管理所有类型定义
-- **工具模块化**：将日志和文件操作独立为工具模块
-- **性能优化**：优化文件哈希计算和扫描逻辑，提升处理速度
+**Q: 磁盘没有被自动检测到？**
+A: 请确认磁盘已正确连接。Windows 用户若使用特殊读卡器，可尝试手动选择目录。应用会过滤掉系统卷和 DMG 挂载点。
 
-### 🔧 代码质量提升
-- **删除冗余代码**：移除重复的 preload 文件和未使用的导入
-- **清理调试代码**：移除生产环境的 console 语句
-- **统一错误处理**：改进错误处理逻辑和日志记录
-- **类型安全增强**：完善 TypeScript 类型定义
+**Q: 拷贝前提示磁盘空间不足？**
+A: 应用会预留 512 MB 缓冲空间。请确保目标目录所在磁盘有足够剩余空间，或选择其他目录。
 
-### 📊 性能改进
-- **文件处理优化**：减少重复的哈希计算，提升拷贝效率
-- **内存使用优化**：改进大文件处理逻辑
-- **代码结构优化**：提升代码可读性和维护性
+**Q: 同名文件如何处理？**
+A: 若目标目录已存在同名文件，应用会自动对比 SHA256 哈希。内容完全一致则跳过，内容不同则自动重命名保存，不会覆盖原文件。
 
-## 📋 系统要求
-
-### 最低配置
-- **CPU**: 双核处理器
-- **内存**: 4GB RAM
-- **存储**: 100MB可用空间
-- **操作系统**: 
-  - macOS 10.14 (Mojave) 或更高版本
-  - Windows 10 或更高版本
-  - Ubuntu 18.04 或其他主流Linux发行版
-
-### 推荐配置
-- **CPU**: 四核处理器或更高
-- **内存**: 8GB RAM或更高
-- **存储**: 1GB可用空间（用于日志和临时文件）
-
-## 🐛 故障排除
-
-### 常见问题
-
-**Q: SD卡无法自动检测？**
-A: 请检查SD卡是否正确插入，或尝试手动选择SD卡目录。某些读卡器可能需要手动选择。
-
-**Q: 拷贝过程中出现错误？**
-A: 请检查目标目录是否有足够空间，以及是否有写入权限。详细错误信息可在日志文件中查看。
-
-**Q: 文件哈希校验失败？**
-A: 这可能表示文件在拷贝过程中损坏。请重新尝试拷贝，或检查SD卡是否有物理损坏。
-
-**Q: 应用启动失败？**
-A: 请确保系统满足最低要求，并检查是否有杀毒软件阻止应用运行。
+**Q: 拷贝失败或校验不通过？**
+A: 可能是源磁盘接触不良或文件损坏。建议重新插拔存储卡后重试。详细错误信息可在日志中查看。
 
 **Q: 自定义图标没有生效？**
-A: 请运行 `npm run clear-icon-cache` 清除系统图标缓存，然后重新启动应用。在macOS上可能需要重启Dock。
+A: 执行 `npm run clear-icon-cache` 清除缓存后重启应用。macOS 可能需要重启 Dock。
 
-**Q: 图标在Dock中显示大小不一致？**
-A: 使用 `npm run setup-icon-with-padding` 命令，它会自动添加适当的边距，确保图标大小与其他应用一致。
+### 日志位置
+- **macOS/Linux**：`~/logs/app-YYYY-MM-DD.log`
+- **Windows**：`%APPDATA%/logs/app-YYYY-MM-DD.log`
 
-### 日志文件
-应用会在 `logs/` 目录下生成详细的日志文件，文件名格式为 `app-YYYY-MM-DD.log`。如遇问题，请查看相应日期的日志文件。
-
-## 🤝 贡献指南
-
-我们欢迎社区贡献！如果您想为项目做出贡献：
-
-1. Fork 本仓库
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
-
-### 代码规范
-- 使用 TypeScript 进行类型安全的开发
-- 遵循模块化设计原则
-- 保持代码简洁和可读性
-- 添加适当的注释和文档
-
-## 📄 许可证
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
-
-## 🙏 致谢
+## 致谢
 
 感谢以下开源项目的支持：
-- [Electron](https://www.electronjs.org/) - 跨平台桌面应用开发框架
-- [Vue.js](https://vuejs.org/) - 渐进式JavaScript框架
-- [Element Plus](https://element-plus.org/) - Vue 3组件库
-- [TypeScript](https://www.typescriptlang.org/) - JavaScript类型安全解决方案
+- [Electron](https://www.electronjs.org/)
+- [Vue.js](https://vuejs.org/)
+- [Element Plus](https://element-plus.org/)
+- [TypeScript](https://www.typescriptlang.org/)
+- [Vite](https://vitejs.dev/)
 
 ---
 
-**光影拷卡助手** - 让每一张照片都安全到达目的地 📸✨
+**光影拷卡助手** — 让每一次拍摄都安心归档
