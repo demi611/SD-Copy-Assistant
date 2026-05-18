@@ -242,6 +242,14 @@
                         {{ messages.dates }}
                       </div>
                     </el-form-item>
+                    <el-form-item class="verification-option-item">
+                      <el-checkbox
+                        v-model="form.fullVerification"
+                        class="custom-checkbox compact-checkbox">
+                        深度校验（较慢）
+                      </el-checkbox>
+                      <span class="verification-tip">默认已检查文件大小；重要素材可开启深度校验</span>
+                    </el-form-item>
                     <div v-if="copyResult" class="copy-result-card" :class="{ 'is-error': !copyResult.success }">
                       <div class="copy-result-title">
                         <el-icon v-if="copyResult.success"><SuccessFilled /></el-icon>
@@ -318,6 +326,12 @@
                     <p class="custom-progress-stats" v-if="totalFiles > 0">
                       已处理 {{ processedFiles }}/{{ totalFiles }} 个文件
                     </p>
+                    <p class="custom-progress-stats" v-if="totalBytes > 0">
+                      {{ processedSizeText }} / {{ totalSizeText }}
+                    </p>
+                    <p class="custom-progress-stats" v-if="transferSpeed">
+                      速度：{{ transferSpeed }}
+                    </p>
                     <p class="custom-progress-stats" v-if="estimatedTimeLeft">
                       预计剩余时间：{{ estimatedTimeLeft }}
                     </p>
@@ -391,11 +405,17 @@
           <div class="help-section">
             <h4>🔒 安全功能</h4>
             <ul>
-              <li><strong>文件完整性校验：</strong>拷贝完成后自动验证文件哈希值</li>
+              <li><strong>文件完整性校验：</strong>默认已检查文件大小；重要素材可开启深度校验，但速度会更慢</li>
               <li><strong>安全推出：</strong>拷贝完成后可点击"推出磁盘"按钮安全移除</li>
               <li><strong>重复检测：</strong>自动跳过已存在的相同文件</li>
-              <li><strong>错误恢复：</strong>详细的错误提示和日志记录</li>
+              <li><strong>错误恢复：</strong>出错时可查看日志辅助排查</li>
             </ul>
+          </div>
+
+          <div class="help-section">
+            <h4>📝 日志</h4>
+            <p>日志会保存在应用专属目录，只保留最近 7 天。需要排查问题时再打开查看。</p>
+            <el-button class="help-action-button" @click="openLogDir">打开日志目录</el-button>
           </div>
         </div>
         <template #footer>
@@ -438,7 +458,12 @@ const messages = reactive({
   copyResultType: 'info' as 'info' | 'success' | 'error' // 拷贝结果消息类型
 })
 
-const form = reactive<Omit<FileCopyRequest, 'selectedDates'> & { selectedDates: string[], copyImages: boolean, copyVideos: boolean }>({
+const form = reactive<Omit<FileCopyRequest, 'selectedDates' | 'verificationMode'> & {
+  selectedDates: string[],
+  copyImages: boolean,
+  copyVideos: boolean,
+  fullVerification: boolean
+}>({
   imageTargetDir: '', // 将在onMounted中设置
   videoTargetDir: '', // 将在onMounted中设置
   sdCardDir: '',
@@ -446,7 +471,8 @@ const form = reactive<Omit<FileCopyRequest, 'selectedDates'> & { selectedDates: 
   selectedDates: [],
   separateRawJpg: false,
   copyImages: true,
-  copyVideos: false
+  copyVideos: false,
+  fullVerification: false
 })
 
 const copying = ref(false)
@@ -454,6 +480,8 @@ const copyProgress = ref(0)
 const statusMessage = ref('')
 const totalFiles = ref(0)
 const processedFiles = ref(0)
+const totalBytes = ref(0)
+const processedBytes = ref(0)
 const availableDates = ref<string[]>([])
 const scanningDates = ref(false)
 const showHelpDialog = ref(false)
@@ -461,6 +489,7 @@ const ejectingSDCard = ref(false)
 const cancelingCopy = ref(false)
 const copyStartTime = ref<number | null>(null)
 const estimatedTimeLeft = ref('')
+const transferSpeed = ref('')
 const copyResult = ref<CopyOperationResult | null>(null)
 const hasSubmitted = ref(false)
 
@@ -541,6 +570,9 @@ const startCopyHint = computed(() => {
 const canStartCopy = computed(() => !scanningDates.value && !startCopyHint.value)
 
 const copyFinished = computed(() => copyProgress.value >= 100)
+
+const totalSizeText = computed(() => formatBytesForDisplay(totalBytes.value))
+const processedSizeText = computed(() => formatBytesForDisplay(processedBytes.value))
 
 const progressTitle = computed(() => {
   if (copyFinished.value) {
@@ -717,16 +749,19 @@ onMounted(async () => {
       statusMessage.value = progress.message || '';
       totalFiles.value = progress.totalFiles || 0;
       processedFiles.value = progress.processedFiles || 0;
+      totalBytes.value = progress.totalBytes || 0;
+      processedBytes.value = progress.processedBytes || 0;
+      transferSpeed.value = progress.bytesPerSecond && progress.bytesPerSecond > 0
+        ? `${formatBytesForDisplay(progress.bytesPerSecond)}/秒`
+        : '';
 
-      // 计算预计剩余时间
-      if (copyStartTime.value && processedFiles.value > 0 && totalFiles.value > 0 && copyProgress.value < 100) {
-        const elapsed = (Date.now() - copyStartTime.value) / 1000; // 秒
-        const avgPerFile = elapsed / processedFiles.value;
-        const leftFiles = totalFiles.value - processedFiles.value;
-        const leftSec = Math.round(leftFiles * avgPerFile);
+      if (progress.bytesPerSecond && progress.bytesPerSecond > 0 && totalBytes.value > 0 && copyProgress.value < 100) {
+        const leftBytes = Math.max(totalBytes.value - processedBytes.value, 0)
+        const leftSec = Math.round(leftBytes / progress.bytesPerSecond)
         estimatedTimeLeft.value = formatSeconds(leftSec);
       } else if (copyProgress.value === 100) {
         estimatedTimeLeft.value = '';
+        transferSpeed.value = '';
       }
 
       if (progress.error) {
@@ -904,8 +939,13 @@ const startCopy = async () => {
   copying.value = true;
   copyProgress.value = 0;
   statusMessage.value = '正在初始化拷贝...';
+  totalFiles.value = 0;
+  processedFiles.value = 0;
+  totalBytes.value = 0;
+  processedBytes.value = 0;
   copyStartTime.value = Date.now();
   estimatedTimeLeft.value = '';
+  transferSpeed.value = '';
 
   window.electron.logMessage('debug', '[App.vue] form.selectedDates before sending:', JSON.parse(JSON.stringify(form.selectedDates)));
 
@@ -920,7 +960,8 @@ const startCopy = async () => {
     selectedDates: [...form.selectedDates],
     separateRawJpg: form.separateRawJpg,
     copyImages: form.copyImages,
-    copyVideos: form.copyVideos
+    copyVideos: form.copyVideos,
+    verificationMode: form.fullVerification ? 'full' : 'quick'
   };
 
   try {
@@ -982,6 +1023,14 @@ const formatCopyResult = (result: CopyOperationResult): string => {
 const openGithub = () => {
   window.electron.logMessage('info', '打开 GitHub 链接');
   window.electron.openExternalLink('https://github.com/demi611/SD-Copy-Assistant');
+}
+
+const openLogDir = async () => {
+  try {
+    await window.electron.openLogDir()
+  } catch (error: any) {
+    errors.general = '打开日志目录失败：' + error.message
+  }
 }
 
 const ejectSDCard = async () => {
@@ -1076,6 +1125,22 @@ function formatSeconds(sec: number) {
   return `${s}秒`;
 }
 
+function formatBytesForDisplay(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let value = bytes
+  let unitIndex = 0
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex++
+  }
+
+  const digits = value >= 100 || unitIndex === 0 ? 0 : 1
+  return `${value.toFixed(digits)} ${units[unitIndex]}`
+}
+
 </script>
 
 <style>
@@ -1119,7 +1184,7 @@ body {
 
 .content-wrapper {
   background: #f7f9fc;
-  padding: 18px 24px 0;
+  padding: 14px 24px 0;
   min-height: 100%;
   box-sizing: border-box;
   display: flex;
@@ -1143,7 +1208,7 @@ body {
 }
 
 .settings-section {
-  padding: 10px 0 8px;
+  padding: 8px 0 7px;
   border-top: 1px solid #e4e9f2;
 }
 
@@ -1153,7 +1218,7 @@ body {
 }
 
 .destination-section {
-  min-height: 180px;
+  min-height: 0;
   box-sizing: border-box;
 }
 
@@ -1161,7 +1226,7 @@ body {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin: 0 0 6px;
+  margin: 0 0 5px;
   padding: 0 6px;
 }
 
@@ -1205,7 +1270,7 @@ body {
 }
 
 .el-form-item {
-  margin-bottom: 6px;
+  margin-bottom: 5px;
   padding: 0 6px;
 }
 
@@ -1428,9 +1493,31 @@ body {
   height: 14px;
 }
 
+.verification-option-item {
+  margin-top: -2px;
+}
+
+.verification-option-item .el-form-item__content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.compact-checkbox .el-checkbox__label {
+  color: #4c6f9f !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.verification-tip {
+  color: #7b8798;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
 .target-placeholder-row {
   margin: 0 6px 0;
-  padding: 7px 12px;
+  padding: 6px 12px;
   border: 1px dashed #d7e3f1;
   border-radius: 8px;
   color: #7c8798;
@@ -1442,7 +1529,7 @@ body {
 /* 主操作区 */
 .main-action-card {
   position: relative;
-  margin: 12px 0 14px;
+  margin: 8px 0 10px;
   width: 100%;
   padding: 0;
   background: transparent;
@@ -1451,7 +1538,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 56px;
+  min-height: 48px;
 }
 
 .action-button-container {
@@ -1509,8 +1596,8 @@ body {
 }
 
 .copy-result-card {
-  margin: 4px 6px 0;
-  padding: 8px 12px;
+  margin: 3px 6px 0;
+  padding: 7px 12px;
   border: 1px solid #cfe7d2;
   border-radius: 9px;
   background: #f4fbf5;
@@ -1519,7 +1606,7 @@ body {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 14px;
-  min-height: 42px;
+  min-height: 38px;
   box-sizing: border-box;
 }
 
@@ -1621,7 +1708,7 @@ body {
   position: static;
   flex-shrink: 0;
   width: 100%;
-  height: 48px;
+  height: 44px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1719,6 +1806,12 @@ body {
 .help-section strong {
   color: #303133;
   font-weight: 600;
+}
+
+.help-action-button {
+  margin-top: 8px;
+  height: 30px !important;
+  border-radius: 8px !important;
 }
 
 /* 下拉选项居中 */

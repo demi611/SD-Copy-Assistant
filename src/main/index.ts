@@ -14,7 +14,7 @@ import { DriveMonitor, getRemovableDrives } from './services/driveService'
 import { ejectSDCard } from './services/ejectService'
 import { scanMediaFileDates } from './services/mediaService'
 import type { FileCopyProgress, FileCopyRequest, LogLevel } from './types'
-import { initializeLogging, writeToLog } from './utils/logger'
+import { getLogDir, initializeLogging, writeToLog } from './utils/logger'
 
 electronApp.setAppUserModelId('com.photo-copy-app')
 
@@ -87,6 +87,7 @@ function createWindowInternal(): void {
     mainWindow = new BrowserWindow({
       width: 500,
       height: 670,
+      // minHeight: 720,
       show: false,
       autoHideMenuBar: true,
       ...(iconPath ? { icon: iconPath } : {}),
@@ -210,6 +211,17 @@ function registerIpcHandlers(): void {
     shell.openExternal(url)
   })
 
+  ipcMain.handle('open-log-dir', async () => {
+    const logDir = getLogDir()
+    writeToLog('info', '打开日志目录')
+    const errorMessage = await shell.openPath(logDir)
+    if (errorMessage) {
+      throw new Error(errorMessage)
+    }
+
+    return { success: true }
+  })
+
   ipcMain.handle('eject-sd-card', async (_event, sdCardPath: string) => {
     writeToLog('info', 'IPC: 收到推出SD卡请求', sdCardPath)
     try {
@@ -221,7 +233,13 @@ function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('start-file-copy', async (event, request: FileCopyRequest) => {
-    writeToLog('info', 'IPC: 收到文件拷贝请求', request)
+    writeToLog('info', 'IPC: 收到文件拷贝请求', {
+      copyImages: request.copyImages,
+      copyVideos: request.copyVideos,
+      selectedDatesCount: request.selectedDates.length,
+      separateRawJpg: request.separateRawJpg,
+      verificationMode: request.verificationMode || 'quick'
+    })
     return copyMediaFiles(request, (progress: FileCopyProgress) => {
       event.sender.send('file-copy-progress', progress)
     })

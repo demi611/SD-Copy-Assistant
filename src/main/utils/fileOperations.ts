@@ -1,6 +1,7 @@
 import fs from 'fs-extra'
 import path from 'path'
 import { createHash } from 'crypto'
+import { constants as fsConstants } from 'fs'
 import { statfs } from 'fs/promises'
 import dayjs from 'dayjs'
 import { 
@@ -232,6 +233,23 @@ export async function getFileSize(filePath: string): Promise<number> {
   return stats.size
 }
 
+export async function getFileStatInfo(filePath: string): Promise<{ size: number; date: string }> {
+  const stats = await fs.stat(filePath)
+  return {
+    size: stats.size,
+    date: dayjs(stats.mtime).format('YYYYMMDD')
+  }
+}
+
+async function haveSameSize(sourcePath: string, targetPath: string): Promise<boolean> {
+  const [sourceStats, targetStats] = await Promise.all([
+    fs.stat(sourcePath),
+    fs.stat(targetPath)
+  ])
+
+  return sourceStats.size === targetStats.size
+}
+
 export async function getAvailableSpace(dirPath: string): Promise<number | null> {
   try {
     await fs.ensureDir(dirPath)
@@ -316,7 +334,8 @@ async function getNonConflictingTargetPath(targetPath: string): Promise<string> 
 export async function copyAndVerifyFile(
   sourcePath: string,
   targetDir: string,
-  separateRawJpg: boolean
+  separateRawJpg: boolean,
+  verificationMode: 'quick' | 'full' = 'quick'
 ): Promise<FileCopyResult> {
   try {
     const fileName = path.basename(sourcePath)
@@ -337,33 +356,50 @@ export async function copyAndVerifyFile(
     let finalTargetPath = targetPath
     let renamed = false
     
-    // 检查文件是否已存在
     if (await fs.pathExists(targetPath)) {
-      const sourceHash = await calculateFileHash(sourcePath)
-      const targetHash = await calculateFileHash(targetPath)
-      
-      if (sourceHash === targetHash) {
-        writeToLog('info', `文件已存在且内容相同，跳过: ${fileName}`)
-        return { status: 'skipped', targetPath }
-      }
+      if (verificationMode === 'quick') {
+        if (await haveSameSize(sourcePath, targetPath)) {
+          writeToLog('info', `文件已存在且大小相同，跳过: ${fileName}`)
+          return { status: 'skipped', targetPath }
+        }
 
-      finalTargetPath = await getNonConflictingTargetPath(targetPath)
-      renamed = true
-      writeToLog('warn', `目标位置已有同名但内容不同的文件，改名保存: ${finalTargetPath}`)
+        finalTargetPath = await getNonConflictingTargetPath(targetPath)
+        renamed = true
+        writeToLog('warn', `目标位置已有同名但大小不同的文件，改名保存: ${finalTargetPath}`)
+      } else {
+        const sourceHash = await calculateFileHash(sourcePath)
+        const targetHash = await calculateFileHash(targetPath)
+
+        if (sourceHash === targetHash) {
+          writeToLog('info', `文件已存在且内容相同，跳过: ${fileName}`)
+          return { status: 'skipped', targetPath }
+        }
+
+        finalTargetPath = await getNonConflictingTargetPath(targetPath)
+        renamed = true
+        writeToLog('warn', `目标位置已有同名但内容不同的文件，改名保存: ${finalTargetPath}`)
+      }
     }
 
-    // 拷贝文件
-    await fs.copy(sourcePath, finalTargetPath, { overwrite: false })
-    
-    // 验证拷贝结果（只计算一次哈希）
+    await fs.copyFile(sourcePath, finalTargetPath, fsConstants.COPYFILE_EXCL)
+
+    if (verificationMode === 'quick') {
+      if (!(await haveSameSize(sourcePath, finalTargetPath))) {
+        writeToLog('error', `文件大小不匹配: ${sourcePath} 和 ${finalTargetPath}`)
+        return { status: 'failed', error: `大小不匹配: ${fileName}` }
+      }
+
+      return { status: renamed ? 'renamed' : 'copied', targetPath: finalTargetPath }
+    }
+
     const sourceHash = await calculateFileHash(sourcePath)
     const targetHash = await calculateFileHash(finalTargetPath)
-    
+
     if (sourceHash !== targetHash) {
       writeToLog('error', `文件哈希不匹配: ${sourcePath} 和 ${finalTargetPath}`)
       return { status: 'failed', error: `哈希不匹配: ${fileName}` }
     }
-    
+
     return { status: renamed ? 'renamed' : 'copied', targetPath: finalTargetPath }
   } catch (error: any) {
     writeToLog('error', `拷贝或校验文件失败: ${sourcePath}`, error)

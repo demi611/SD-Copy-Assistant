@@ -1,47 +1,75 @@
 import fs from 'fs-extra'
 import path from 'path'
 import dayjs from 'dayjs'
+import { app } from 'electron'
 import type { LogLevel } from '../types'
 
 let logDir: string
 let logFilePath: string
+const LOG_FOLDER_NAME = '光影拷卡助手'
+
+function resolveLogDir(): string {
+  if (process.platform === 'darwin') {
+    return path.join(app.getPath('home'), 'Library', 'Logs', LOG_FOLDER_NAME)
+  }
+
+  return path.join(app.getPath('logs'), LOG_FOLDER_NAME)
+}
+
+function redactSensitivePaths(value: string): string {
+  let redactedValue = value
+  const sensitiveRoots = [
+    app.isReady() ? app.getPath('home') : process.env.HOME,
+    process.env.APPDATA
+  ].filter((item): item is string => !!item)
+
+  for (const sensitiveRoot of sensitiveRoots) {
+    redactedValue = redactedValue.split(sensitiveRoot).join('~')
+  }
+
+  return redactedValue
+}
 
 // 初始化日志系统
 export function initializeLogging(): void {
-  logDir = path.join(process.env.APPDATA || process.env.HOME || '', 'logs')
+  logDir = resolveLogDir()
   fs.ensureDirSync(logDir)
-  logFilePath = path.join(logDir, `app-${dayjs().format('YYYY-MM-DD')}.log`)
+  logFilePath = path.join(logDir, `${dayjs().format('YYYY-MM-DD')}.log`)
+  cleanupOldLogs()
+}
+
+export function getLogDir(): string {
+  if (!logDir) {
+    logDir = resolveLogDir()
+  }
+
+  return logDir
 }
 
 // 格式化日志消息
 function formatLogMessage(level: LogLevel, message: string, args: any[]): string {
   const timestamp = dayjs().format('YYYY-MM-DD HH:mm:ss')
-  let logMessage = `${timestamp} [${level.toUpperCase()}] - ${message}`
+  let logMessage = `${timestamp} [${level.toUpperCase()}] - ${redactSensitivePaths(message)}`
 
   if (args.length > 0) {
     const processedArgs = args.map(arg => {
       if (arg instanceof Error) {
-        return `Error: ${arg.message}\nStack: ${arg.stack}`
+        return redactSensitivePaths(`Error: ${arg.message}\nStack: ${arg.stack}`)
       } else if (typeof arg === 'object' && arg !== null) {
         try {
-          return JSON.stringify(arg, (_, value) => {
+          const cache = new WeakSet()
+          return redactSensitivePaths(JSON.stringify(arg, (_key, value) => {
             if (typeof value === 'object' && value !== null) {
-              const cache = new Set()
-              return JSON.stringify(value, (_, v) => {
-                if (typeof v === 'object' && v !== null) {
-                  if (cache.has(v)) return
-                  cache.add(v)
-                }
-                return v
-              })
+              if (cache.has(value)) return '[Circular]'
+              cache.add(value)
             }
             return value
-          })
+          }))
         } catch (e) {
           return '[Circular or complex object]'
         }
       } else {
-        return String(arg)
+        return redactSensitivePaths(String(arg))
       }
     })
     logMessage += ` ${processedArgs.join(' ')}`
@@ -85,4 +113,4 @@ export function cleanupOldLogs(): void {
   } catch (error) {
     writeToLog('error', '清理旧日志文件失败:', error)
   }
-} 
+}

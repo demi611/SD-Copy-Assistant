@@ -8,6 +8,7 @@ export interface FileCopyRequest {
   separateRawJpg: boolean;
   copyImages: boolean;
   copyVideos: boolean;
+  verificationMode?: 'quick' | 'full';
 }
 
 export interface FileCopyProgress {
@@ -17,6 +18,9 @@ export interface FileCopyProgress {
   error?: string;
   totalFiles?: number;
   processedFiles?: number;
+  totalBytes?: number;
+  processedBytes?: number;
+  bytesPerSecond?: number;
 }
 
 export interface FileCopyResult {

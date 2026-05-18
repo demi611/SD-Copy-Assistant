@@ -11,6 +11,7 @@ import type { CopyOperationResult, FileCopyRequest, FileCopyProgress } from '../
 const electronApi = {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
   openExternalLink: (url: string) => ipcRenderer.send('open-external-link', url),
+  openLogDir: (): Promise<{ success: boolean }> => ipcRenderer.invoke('open-log-dir'),
   // 新增：用于从渲染器发送日志消息到主进程
   logMessage: (level: string, message: string, ...args: any[]) => {
     ipcRenderer.send('log-message', level, message, ...args)
@@ -76,6 +77,7 @@ if (process.contextIsolated) {
 export interface IElectronAPI {
   selectDirectory: () => Promise<string | null>
   openExternalLink: (url: string) => void
+  openLogDir: () => Promise<{ success: boolean }>
   logMessage: (level: string, message: string, ...args: any[]) => void
   scanMediaFileDates: (dirPath: string) => Promise<string[]>
   startFileCopy: (request: FileCopyRequest) => Promise<CopyOperationResult>
